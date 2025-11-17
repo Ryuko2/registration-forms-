@@ -1,1138 +1,589 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LJ Services Group - Management Dashboard</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        
-        /* Login Screen */
-        #loginScreen {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .login-card {
-            background: white;
-            border-radius: 20px;
-            padding: 60px 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 450px;
-            width: 100%;
-            text-align: center;
-        }
-        
-        .login-logo {
-            font-size: 48px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-        
-        .login-subtitle {
-            color: #64748b;
-            font-size: 16px;
-            margin-bottom: 40px;
-        }
-        
-        .microsoft-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            width: 100%;
-            padding: 16px;
-            background: #0078d4;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .microsoft-btn:hover {
-            background: #106ebe;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,120,212,0.3);
-        }
-        
-        .microsoft-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Main App */
-        #mainApp {
-            display: none;
-            height: 100vh;
-            background: #f8fafc;
-        }
-        
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar-header {
-            padding: 24px 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .sidebar-logo {
-            font-size: 24px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .sidebar-nav {
-            flex: 1;
-            padding: 20px 10px;
-            overflow-y: auto;
-        }
-        
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            margin-bottom: 4px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #64748b;
-            font-weight: 500;
-        }
-        
-        .nav-item:hover {
-            background: #f1f5f9;
-            color: #667eea;
-        }
-        
-        .nav-item.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .nav-item i {
-            width: 20px;
-            text-align: center;
-        }
-        
-        .sidebar-footer {
-            padding: 20px;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-        
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-        }
-        
-        .user-details {
-            flex: 1;
-        }
-        
-        .user-name {
-            font-weight: 600;
-            color: #1e293b;
-            font-size: 14px;
-        }
-        
-        .user-email {
-            font-size: 12px;
-            color: #64748b;
-        }
-        
-        .logout-btn {
-            width: 100%;
-            padding: 10px;
-            background: #fee2e2;
-            color: #dc2626;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .logout-btn:hover {
-            background: #fecaca;
-        }
-        
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 30px;
-        }
-        
-        .page-header {
-            margin-bottom: 30px;
-        }
-        
-        .page-title {
-            font-size: 32px;
-            font-weight: 800;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-        
-        .page-subtitle {
-            color: #64748b;
-            font-size: 16px;
-        }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-        }
-        
-        .stat-value {
-            font-size: 36px;
-            font-weight: 800;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-        
-        .stat-label {
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        /* Action Bar */
-        .action-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        
-        .primary-btn {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .primary-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .filter-select {
-            padding: 10px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .filter-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .search-input {
-            flex: 1;
-            min-width: 250px;
-            padding: 10px 16px 10px 40px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-        
-        .search-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .search-wrapper {
-            position: relative;
-            flex: 1;
-            min-width: 250px;
-        }
-        
-        .search-wrapper i {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-        }
-        
-        /* Content Grid */
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-        
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-        }
-        
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 16px;
-        }
-        
-        .card-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 8px;
-        }
-        
-        .card-meta {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        
-        .badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .badge-open {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .badge-progress {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .badge-completed {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .badge-high {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .badge-medium {
-            background: #fed7aa;
-            color: #9a3412;
-        }
-        
-        .badge-low {
-            background: #e0e7ff;
-            color: #3730a3;
-        }
-        
-        .card-content {
-            color: #64748b;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
-        
-        .card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 16px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 13px;
-            color: #94a3b8;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            max-width: 600px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .modal-header {
-            padding: 24px;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-title {
-            font-size: 24px;
-            font-weight: 800;
-            color: #1e293b;
-        }
-        
-        .modal-close {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: #f1f5f9;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-        
-        .modal-close:hover {
-            background: #e2e8f0;
-        }
-        
-        .modal-body {
-            padding: 24px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #1e293b;
-            font-size: 14px;
-        }
-        
-        .form-input,
-        .form-select,
-        .form-textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-        
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .form-textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        .modal-footer {
-            padding: 24px;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
-        
-        .secondary-btn {
-            padding: 12px 24px;
-            background: #f1f5f9;
-            color: #475569;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .secondary-btn:hover {
-            background: #e2e8f0;
-        }
-        
-        .danger-btn {
-            padding: 12px 24px;
-            background: #dc2626;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .danger-btn:hover {
-            background: #b91c1c;
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        
-        .empty-icon {
-            font-size: 64px;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-        
-        .empty-title {
-            font-size: 20px;
-            font-weight: 700;
-            color: #475569;
-            margin-bottom: 8px;
-        }
-        
-        .empty-text {
-            color: #94a3b8;
-            font-size: 14px;
-        }
-        
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                left: -280px;
-                top: 0;
-                height: 100vh;
-                z-index: 999;
-            }
-            
-            .sidebar.mobile-open {
-                left: 0;
-            }
-            
-            .mobile-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 998;
-            }
-            
-            .mobile-overlay.active {
-                display: block;
-            }
-            
-            .mobile-menu-btn {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                width: 56px;
-                height: 56px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                z-index: 997;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        /* Loading Animation */
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 60px 20px;
-        }
-        
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #e2e8f0;
-            border-top-color: #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Hidden class */
-        .hidden {
-            display: none !important;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>LJ Services – CRM Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind CDN (fine for testing; you can compile later for production) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Simple background + drawer animation helpers */
+    body {
+      @apply bg-slate-100;
+    }
+
+    .drawer-enter {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    .drawer-open {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  </style>
 </head>
-<body>
-    <!-- Login Screen -->
-    <div id="loginScreen">
-        <div class="login-card">
-            <div class="login-logo">LJ SERVICES</div>
-            <div class="login-subtitle">Property Management Dashboard</div>
-            
-            <button id="microsoftLoginBtn" class="microsoft-btn">
-                <i class="fab fa-microsoft"></i>
-                <span>Sign in with Microsoft</span>
-            </button>
-            
-            <div id="loginError" style="display:none; margin-top: 20px; padding: 12px; background: #fee2e2; color: #dc2626; border-radius: 8px; font-size: 14px;"></div>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Bar -->
+  <header class="w-full bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white font-semibold">
+          LJ
+        </span>
+        <div>
+          <h1 class="text-sm font-semibold text-slate-900">
+            LJ Services Group – Operations CRM
+          </h1>
+          <p class="text-xs text-slate-500">
+            Tickets • Work Orders • Violations • Analytics
+          </p>
         </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex flex-col items-end">
+          <span id="userName" class="text-sm font-medium text-slate-900">Loading…</span>
+          <span id="userEmail" class="text-xs text-slate-500 truncate max-w-[220px]">
+            –
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            id="newTicketMainBtn"
+            data-open-drawer="ticket"
+            data-dashboard="Tickets Dashboard"
+            data-type="General"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs sm:text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+          >
+            <span class="hidden sm:inline">New Ticket</span>
+            <span class="sm:hidden">+</span>
+          </button>
+
+          <button
+            id="logoutBtn"
+            class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-1"
+          >
+            Logout
+          </button>
+
+          <div
+            class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold"
+          >
+            K
+          </div>
+        </div>
+      </div>
     </div>
-    
-   <!-- Main App -->
-<div id="mainApp" style="display: none; height: 100vh; background: #f8fafc; display: flex;">
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-logo">LJ SERVICES</div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="hidden md:flex flex-col w-60 bg-white border-r border-slate-200">
+      <div class="px-4 py-4 border-b border-slate-100">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          Dashboards
+        </p>
+        <div class="mt-3 space-y-1">
+          <button
+            type="button"
+            data-dashboard="main"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50"
+          >
+            <span>Overview</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              Main
+            </span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="tickets"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Tickets Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="workOrders"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Work Orders Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="violations"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Violations Dashboard</span>
+          </button>
         </div>
-        
-        <nav class="sidebar-nav">
-            <div class="nav-item active" data-page="dashboard">
-                <i class="fas fa-th-large"></i>
-                <span>Dashboard</span>
-            </div>
-            <div class="nav-item" data-page="tickets">
-                <i class="fas fa-ticket-alt"></i>
-                <span>Tickets</span>
-            </div>
-            <div class="nav-item" data-page="workorders">
-                <i class="fas fa-tools"></i>
-                <span>Work Orders</span>
-            </div>
-            <div class="nav-item" data-page="violations">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Violations</span>
-            </div>
-        </nav>
-        
-        <div class="sidebar-footer">
-            <div class="user-info">
-                <div class="user-avatar" id="userAvatar">K</div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">Loading...</div>
-                    <div class="user-email" id="userEmail">...</div>
-                </div>
-            </div>
-            <button class="logout-btn" id="logoutBtn">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
-        </div>
+      </div>
+
+      <div class="mt-auto px-4 py-4 border-t border-slate-100 text-[11px] text-slate-400">
+        <p>Realtime data from Firebase</p>
+        <p class="mt-1">DB: <span class="font-mono text-[10px]" id="dbUrlLabel">–</span></p>
+      </div>
     </aside>
-    
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Dashboard Page -->
-        <div id="dashboardPage" class="page">
-            ...
-            <!-- (keep all your existing Dashboard HTML here) -->
-        </div>
 
-        <!-- Tickets Page -->
-        <div id="ticketsPage" class="page hidden">
-            ...
-        </div>
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- Work Orders Page -->
-        <div id="workordersPage" class="page hidden">
-            ...
-        </div>
-
-        <!-- Violations Page -->
-        <div id="violationsPage" class="page hidden">
-            ...
-        </div>
-    </main>
-</div>
-
-                
-                <!-- Stats -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalTickets">0</div>
-                        <div class="stat-label">Total Tickets</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="openTickets">0</div>
-                        <div class="stat-label">Open Tickets</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalWorkOrders">0</div>
-                        <div class="stat-label">Work Orders</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalViolations">0</div>
-                        <div class="stat-label">Violations</div>
-                    </div>
-                </div>
-                
-                <!-- Recent Activity -->
-                <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 20px; color: #1e293b;">Recent Activity</h2>
-                <div id="recentActivity" class="content-grid"></div>
-            </div>
-            
-            <!-- Tickets Page -->
-            <div id="ticketsPage" class="page hidden">
-                <div class="page-header">
-                    <h1 class="page-title">Tickets</h1>
-                    <p class="page-subtitle">Manage all property tickets and requests</p>
-                </div>
-                
-                <div class="action-bar">
-                    <button class="primary-btn" id="createTicketBtn">
-                        <i class="fas fa-plus"></i>
-                        <span>New Ticket</span>
-                    </button>
-                    
-                    <select class="filter-select" id="ticketStatusFilter">
-                        <option value="">All Status</option>
-                        <option value="open">Open</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-                    
-                    <select class="filter-select" id="ticketAssociationFilter">
-                        <option value="">All Associations</option>
-                    </select>
-                    
-                    <div class="search-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="ticketSearch" placeholder="Search tickets...">
-                    </div>
-                </div>
-                
-                <div id="ticketsList" class="content-grid"></div>
-            </div>
-            
-            <!-- Work Orders Page -->
-            <div id="workordersPage" class="page hidden">
-                <div class="page-header">
-                    <h1 class="page-title">Work Orders</h1>
-                    <p class="page-subtitle">Track and manage maintenance work orders</p>
-                </div>
-                
-                <div class="action-bar">
-                    <button class="primary-btn" id="createWorkOrderBtn">
-                        <i class="fas fa-plus"></i>
-                        <span>New Work Order</span>
-                    </button>
-                    
-                    <select class="filter-select" id="workOrderStatusFilter">
-                        <option value="">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-                    
-                    <select class="filter-select" id="workOrderAssociationFilter">
-                        <option value="">All Associations</option>
-                    </select>
-                    
-                    <div class="search-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="workOrderSearch" placeholder="Search work orders...">
-                    </div>
-                </div>
-                
-                <div id="workOrdersList" class="content-grid"></div>
-            </div>
-            
-            <!-- Violations Page -->
-            <div id="violationsPage" class="page hidden">
-                <div class="page-header">
-                    <h1 class="page-title">Violations</h1>
-                    <p class="page-subtitle">Manage HOA violations with 4-step notice process</p>
-                </div>
-                
-                <div class="action-bar">
-                    <button class="primary-btn" id="createViolationBtn">
-                        <i class="fas fa-plus"></i>
-                        <span>New Violation</span>
-                    </button>
-                    
-                    <select class="filter-select" id="violationStepFilter">
-                        <option value="">All Steps</option>
-                        <option value="1">1st Notice</option>
-                        <option value="2">2nd Notice</option>
-                        <option value="3">3rd Notice</option>
-                        <option value="4">Hearing Letter</option>
-                    </select>
-                    
-                    <select class="filter-select" id="violationAssociationFilter">
-                        <option value="">All Associations</option>
-                    </select>
-                    
-                    <div class="search-wrapper">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="violationSearch" placeholder="Search violations...">
-                    </div>
-                </div>
-                
-                <div id="violationsList" class="content-grid"></div>
-            </div>
-        </main>
-    </div>
-    
-    <!-- Mobile Menu Button -->
-    <button class="mobile-menu-btn" id="mobileMenuBtn" style="display: none;">
-        <i class="fas fa-bars"></i>
-    </button>
-    
-    <!-- Mobile Overlay -->
-    <div class="mobile-overlay" id="mobileOverlay"></div>
-    
-  <form id="ticketForm">
-    <div class="form-group">
-        <label class="form-label">Ticket Type *</label>
-        <select class="form-select" name="ticketType" required>
-            <option value="general" selected>General</option>
-            <option value="violation">Violation</option>
-            <option value="workorder">Work Order</option>
-        </select>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Title *</label>
-        <input type="text" class="form-input" name="title" required>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Association *</label>
-        <select class="form-select" name="association" required>
-            <option value="">Select Association</option>
-        </select>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Dashboard *</label>
-        <select class="form-select" name="dashboard" required>
-            <option value="tickets" selected>Tickets Dashboard</option>
-            <option value="workorders">Work Orders Dashboard</option>
+        <!-- Mobile dashboard selector -->
+        <div class="md:hidden">
+          <label class="block text-xs font-medium text-slate-500 mb-1">Dashboard</label>
+          <select
+            id="mobileDashboardSelect"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="main">Overview</option>
+            <option value="tickets">Tickets Dashboard</option>
+            <option value="workOrders">Work Orders Dashboard</option>
             <option value="violations">Violations Dashboard</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Priority *</label>
-        <select class="form-select" name="priority" required>
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Status *</label>
-        <select class="form-select" name="status" required>
-            <option value="open" selected>Open</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="closed">Closed</option>
-        </select>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Assigned To</label>
-        <input type="text" class="form-input" name="assignedTo" placeholder="Team member responsible">
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Vendor / External Party</label>
-        <input type="text" class="form-input" name="vendor" placeholder="Vendor name and contact">
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea class="form-textarea" name="description" placeholder="Describe the issue or task..."></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Attachment Links</label>
-        <textarea class="form-textarea" name="attachments" placeholder="Paste Dropbox / Drive / image links (one or many)"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Internal Notes / Comments</label>
-        <textarea class="form-textarea" name="internalNotes" placeholder="Notes, updates, CC team members, etc."></textarea>
-    </div>
-</form>
-
-            </div>
-            <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('ticketModal')">Cancel</button>
-                <button class="primary-btn" onclick="saveTicket()">Create Ticket</button>
-            </div>
+          </select>
         </div>
-    </div>
-    
-    <!-- Work Order Modal -->
-    <div id="workOrderModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">New Work Order</h2>
-                <button class="modal-close" onclick="closeModal('workOrderModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-               <form id="workOrderForm">
-    <div class="form-group">
-        <label class="form-label">Title *</label>
-        <input type="text" class="form-input" name="title" required>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Association *</label>
-        <select class="form-select" name="association" required>
-            <option value="">Select Association</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Type *</label>
-        <select class="form-select" name="type" required>
-            <option value="maintenance">Maintenance</option>
-            <option value="repair">Repair</option>
-            <option value="inspection">Inspection</option>
-            <option value="emergency">Emergency</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Status *</label>
-        <select class="form-select" name="status" required>
-            <option value="pending" selected>Pending</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-        </select>
-    </div>
 
-    <div class="form-group">
-        <label class="form-label">Assigned To</label>
-        <input type="text" class="form-input" name="assignedTo" placeholder="Team member responsible">
-    </div>
+        <!-- Header row with quick actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900" id="dashboardTitle">
+              Overview
+            </h2>
+            <p class="text-xs text-slate-500 mt-1" id="dashboardSubtitle">
+              High-level activity across all tickets, work orders, and violations.
+            </p>
+          </div>
 
-    <div class="form-group">
-        <label class="form-label">Vendor / External Party</label>
-        <input type="text" class="form-input" name="vendor" placeholder="Vendor name and contact">
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea class="form-textarea" name="description" placeholder="Describe the work needed..."></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Attachment Links</label>
-        <textarea class="form-textarea" name="attachments" placeholder="Photos, proposals, invoices, etc."></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Internal Notes / Comments</label>
-        <textarea class="form-textarea" name="internalNotes" placeholder="Notes, vendor follow-up, CC team members, etc."></textarea>
-    </div>
-</form>
-
-            </div>
-            <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('workOrderModal')">Cancel</button>
-                <button class="primary-btn" onclick="saveWorkOrder()">Create Work Order</button>
-            </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Tickets Dashboard"
+              data-type="General"
+              class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <span>+ Ticket</span>
+            </button>
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Work Orders Dashboard"
+              data-type="Work Order"
+              class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              <span>+ Work Order</span>
+            </button>
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Violations Dashboard"
+              data-type="Violation"
+              class="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+            >
+              <span>+ Violation</span>
+            </button>
+          </div>
         </div>
-    </div>
-    
-    <!-- Violation Modal -->
-    <form id="violationForm">
-    <div class="form-group">
-        <label class="form-label">Homeowner Name *</label>
-        <input type="text" class="form-input" name="homeowner" required>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Association *</label>
-        <select class="form-select" name="association" required>
-            <option value="">Select Association</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Unit/Address *</label>
-        <input type="text" class="form-input" name="unit" required>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Violation Type *</label>
-        <input type="text" class="form-input" name="violationType" required placeholder="e.g., Parking, Noise, Architectural change">
-    </div>
 
-    <div class="form-group">
-        <label class="form-label">Rule / Covenant Broken *</label>
-        <input type="text" class="form-input" name="rule" required placeholder="e.g., CC&Rs §4.2 – Parking restrictions">
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Current Step *</label>
-        <select class="form-select" name="step" required>
-            <option value="1" selected>1st Notice (Warning)</option>
-            <option value="2">2nd Notice</option>
-            <option value="3">3rd Notice</option>
-            <option value="4">Hearing Letter</option>
-        </select>
-    </div>
-    
-    <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea class="form-textarea" name="description" placeholder="Describe the violation..."></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Attachment Links</label>
-        <textarea class="form-textarea" name="attachments" placeholder="Photos, inspection reports, etc."></textarea>
-    </div>
-
-    <div class="form-group">
-        <label class="form-label">Internal Notes / Comments</label>
-        <textarea class="form-textarea" name="internalNotes" placeholder="Officer notes, board direction, CC team members..."></textarea>
-    </div>
-</form>
-
+        <!-- Stat cards -->
+        <section
+          class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
+          data-dashboard-view="main"
+        >
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-slate-500">Total Tickets</p>
+              <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700">
+                All dashboards
+              </span>
             </div>
-            <div class="modal-footer">
-                <button class="secondary-btn" onclick="closeModal('violationModal')">Cancel</button>
-                <button class="primary-btn" onclick="saveViolation()">Create Violation</button>
+            <p id="totalTicketsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Includes tickets, work orders & violations.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <p class="text-xs font-medium text-slate-500">Open Tickets</p>
+            <p id="openTicketsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Items still in progress or waiting.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <p class="text-xs font-medium text-slate-500">Work Orders</p>
+            <p id="totalWorkOrdersCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Vendor-related maintenance tasks.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <p class="text-xs font-medium text-slate-500">Violations</p>
+            <p id="totalViolationsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Logged CC&R infractions.</p>
+          </div>
+        </section>
+
+        <!-- Overview dashboard view -->
+        <section
+          data-dashboard-view="main"
+          class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start"
+        >
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 lg:col-span-2">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-slate-900">Recent Activity</h3>
+              <span class="text-[11px] text-slate-500">
+                Last 10 items across all dashboards
+              </span>
             </div>
+            <div id="recentActivityList" class="divide-y divide-slate-100 text-sm">
+              <!-- Filled by app.js -->
+              <p class="text-xs text-slate-400 py-4 text-center">
+                No activity yet. Create your first ticket to get started.
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 rounded-xl text-white p-4 shadow-sm flex flex-col gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-indigo-100">
+                Smart Assistant
+              </p>
+              <h3 class="text-sm font-semibold mt-1">
+                AI Powered Letters
+              </h3>
+              <p class="text-xs text-indigo-100 mt-1">
+                Use the buttons above to create Violation and Work Order tickets.
+                Letters can be generated later from each ticket’s action menu.
+              </p>
+            </div>
+            <ul class="text-[11px] space-y-1">
+              <li class="flex items-start gap-2">
+                <span class="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
+                <span>Violation letters include rule / covenant that was broken.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-300"></span>
+                <span>Work order letters are formatted for vendors with CC options.</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Tickets view -->
+        <section
+          data-dashboard-view="tickets"
+          class="hidden space-y-4"
+        >
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-900">Tickets Dashboard</h3>
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Tickets Dashboard"
+              data-type="General"
+              class="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+            >
+              + New Ticket
+            </button>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <table class="min-w-full text-xs sm:text-sm">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium">Title</th>
+                  <th class="px-3 py-2 text-left font-medium">Association</th>
+                  <th class="px-3 py-2 text-left font-medium">Priority</th>
+                  <th class="px-3 py-2 text-left font-medium">Status</th>
+                  <th class="px-3 py-2 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ticketsTableBody" class="divide-y divide-slate-100">
+                <!-- Filled by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Work Orders view -->
+        <section
+          data-dashboard-view="workOrders"
+          class="hidden space-y-4"
+        >
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-900">Work Orders Dashboard</h3>
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Work Orders Dashboard"
+              data-type="Work Order"
+              class="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600"
+            >
+              + New Work Order
+            </button>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <table class="min-w-full text-xs sm:text-sm">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium">Title</th>
+                  <th class="px-3 py-2 text-left font-medium">Association</th>
+                  <th class="px-3 py-2 text-left font-medium">Vendor</th>
+                  <th class="px-3 py-2 text-left font-medium">Status</th>
+                  <th class="px-3 py-2 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="workOrdersTableBody" class="divide-y divide-slate-100">
+                <!-- Filled by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Violations view -->
+        <section
+          data-dashboard-view="violations"
+          class="hidden space-y-4"
+        >
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-900">Violations Dashboard</h3>
+            <button
+              data-open-drawer="ticket"
+              data-dashboard="Violations Dashboard"
+              data-type="Violation"
+              class="inline-flex items-center gap-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600"
+            >
+              + New Violation
+            </button>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <table class="min-w-full text-xs sm:text-sm">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium">Title</th>
+                  <th class="px-3 py-2 text-left font-medium">Association</th>
+                  <th class="px-3 py-2 text-left font-medium">Rule / Covenant</th>
+                  <th class="px-3 py-2 text-left font-medium">Status</th>
+                  <th class="px-3 py-2 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="violationsTableBody" class="divide-y divide-slate-100">
+                <!-- Filled by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Drawer Backdrop -->
+  <div
+    id="ticketDrawerBackdrop"
+    class="fixed inset-0 bg-slate-900/40 opacity-0 pointer-events-none transition-opacity duration-200"
+  ></div>
+
+  <!-- Ticket / Work Order / Violation Drawer -->
+  <aside
+    id="ticketDrawer"
+    class="drawer-enter fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 z-40 transition-all duration-200 flex flex-col"
+  >
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          New Item
+        </p>
+        <h2 id="drawerTitle" class="text-sm font-semibold text-slate-900">
+          Create Ticket
+        </h2>
+      </div>
+      <button
+        type="button"
+        data-close-drawer
+        class="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form id="ticketForm" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Ticket Type
+          </label>
+          <select
+            name="ticketType"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="General">General</option>
+            <option value="Work Order">Work Order</option>
+            <option value="Violation">Violation</option>
+          </select>
         </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Dashboard
+          </label>
+          <select
+            name="dashboard"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="Tickets Dashboard">Tickets Dashboard</option>
+            <option value="Work Orders Dashboard">Work Orders Dashboard</option>
+            <option value="Violations Dashboard">Violations Dashboard</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Title *
+        </label>
+        <input
+          name="title"
+          type="text"
+          required
+          placeholder="Short description of the issue or task"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Association *
+          </label>
+          <input
+            name="association"
+            type="text"
+            required
+            placeholder="Select / type association"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Priority
+          </label>
+          <select
+            name="priority"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Status
+          </label>
+          <select
+            name="status"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="Open" selected>Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Assigned To
+          </label>
+          <input
+            name="assignedTo"
+            type="text"
+            placeholder="Team member responsible"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Vendor / External Party
+        </label>
+        <input
+          name="vendor"
+          type="text"
+          placeholder="Vendor name and contact"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Description
+        </label>
+        <textarea
+          name="description"
+          rows="4"
+          placeholder="Describe the issue, task, or violation details…"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        ></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Rule / Covenant (for violations)
+        </label>
+        <input
+          name="ruleBroken"
+          type="text"
+          placeholder="Enter rule, covenant, or policy that was broken"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Attachment Links
+        </label>
+        <input
+          name="attachments"
+          type="text"
+          placeholder="Paste Dropbox / SharePoint / image URLs (comma separated)"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+      </div>
+    </form>
+
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+      <p class="text-[11px] text-slate-500">
+        Ticket ID and reference number will be generated automatically.
+      </p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          data-close-drawer
+          class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          form="ticketForm"
+          class="rounded-lg px-4 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          Save
+        </button>
+      </div>
     </div>
-    
-    <!-- Scripts -->
-    <script src="firebase-config.js"></script>
-    <script src="app.js"></script>
+  </aside>
+
+  <!-- Firebase SDKs + Config + App -->
+  <!-- (keep using your existing Firebase config file) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
