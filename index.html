@@ -907,52 +907,83 @@
     <!-- Mobile Overlay -->
     <div class="mobile-overlay" id="mobileOverlay"></div>
     
-    <!-- Ticket Modal -->
-    <div id="ticketModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">New Ticket</h2>
-                <button class="modal-close" onclick="closeModal('ticketModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="ticketForm">
-                    <div class="form-group">
-                        <label class="form-label">Title *</label>
-                        <input type="text" class="form-input" name="title" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Association *</label>
-                        <select class="form-select" name="association" required>
-                            <option value="">Select Association</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Priority *</label>
-                        <select class="form-select" name="priority" required>
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Status *</label>
-                        <select class="form-select" name="status" required>
-                            <option value="open" selected>Open</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-textarea" name="description" placeholder="Describe the issue or request..."></textarea>
-                    </div>
-                </form>
+  <form id="ticketForm">
+    <div class="form-group">
+        <label class="form-label">Ticket Type *</label>
+        <select class="form-select" name="ticketType" required>
+            <option value="general" selected>General</option>
+            <option value="violation">Violation</option>
+            <option value="workorder">Work Order</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input type="text" class="form-input" name="title" required>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Association *</label>
+        <select class="form-select" name="association" required>
+            <option value="">Select Association</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Dashboard *</label>
+        <select class="form-select" name="dashboard" required>
+            <option value="tickets" selected>Tickets Dashboard</option>
+            <option value="workorders">Work Orders Dashboard</option>
+            <option value="violations">Violations Dashboard</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Priority *</label>
+        <select class="form-select" name="priority" required>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Status *</label>
+        <select class="form-select" name="status" required>
+            <option value="open" selected>Open</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="closed">Closed</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Assigned To</label>
+        <input type="text" class="form-input" name="assignedTo" placeholder="Team member responsible">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Vendor / External Party</label>
+        <input type="text" class="form-input" name="vendor" placeholder="Vendor name and contact">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" name="description" placeholder="Describe the issue or task..."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Attachment Links</label>
+        <textarea class="form-textarea" name="attachments" placeholder="Paste Dropbox / Drive / image links (one or many)"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Internal Notes / Comments</label>
+        <textarea class="form-textarea" name="internalNotes" placeholder="Notes, updates, CC team members, etc."></textarea>
+    </div>
+</form>
+
             </div>
             <div class="modal-footer">
                 <button class="secondary-btn" onclick="closeModal('ticketModal')">Cancel</button>
@@ -971,43 +1002,64 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="workOrderForm">
-                    <div class="form-group">
-                        <label class="form-label">Title *</label>
-                        <input type="text" class="form-input" name="title" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Association *</label>
-                        <select class="form-select" name="association" required>
-                            <option value="">Select Association</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Type *</label>
-                        <select class="form-select" name="type" required>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="repair">Repair</option>
-                            <option value="inspection">Inspection</option>
-                            <option value="emergency">Emergency</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Status *</label>
-                        <select class="form-select" name="status" required>
-                            <option value="pending" selected>Pending</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-textarea" name="description" placeholder="Describe the work needed..."></textarea>
-                    </div>
-                </form>
+               <form id="workOrderForm">
+    <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input type="text" class="form-input" name="title" required>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Association *</label>
+        <select class="form-select" name="association" required>
+            <option value="">Select Association</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Type *</label>
+        <select class="form-select" name="type" required>
+            <option value="maintenance">Maintenance</option>
+            <option value="repair">Repair</option>
+            <option value="inspection">Inspection</option>
+            <option value="emergency">Emergency</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Status *</label>
+        <select class="form-select" name="status" required>
+            <option value="pending" selected>Pending</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Assigned To</label>
+        <input type="text" class="form-input" name="assignedTo" placeholder="Team member responsible">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Vendor / External Party</label>
+        <input type="text" class="form-input" name="vendor" placeholder="Vendor name and contact">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" name="description" placeholder="Describe the work needed..."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Attachment Links</label>
+        <textarea class="form-textarea" name="attachments" placeholder="Photos, proposals, invoices, etc."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Internal Notes / Comments</label>
+        <textarea class="form-textarea" name="internalNotes" placeholder="Notes, vendor follow-up, CC team members, etc."></textarea>
+    </div>
+</form>
+
             </div>
             <div class="modal-footer">
                 <button class="secondary-btn" onclick="closeModal('workOrderModal')">Cancel</button>
@@ -1017,53 +1069,60 @@
     </div>
     
     <!-- Violation Modal -->
-    <div id="violationModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">New Violation</h2>
-                <button class="modal-close" onclick="closeModal('violationModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="violationForm">
-                    <div class="form-group">
-                        <label class="form-label">Homeowner Name *</label>
-                        <input type="text" class="form-input" name="homeowner" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Association *</label>
-                        <select class="form-select" name="association" required>
-                            <option value="">Select Association</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Unit/Address *</label>
-                        <input type="text" class="form-input" name="unit" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Violation Type *</label>
-                        <input type="text" class="form-input" name="violationType" required placeholder="e.g., Parking violation, Noise complaint">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Current Step *</label>
-                        <select class="form-select" name="step" required>
-                            <option value="1" selected>1st Notice (Warning)</option>
-                            <option value="2">2nd Notice</option>
-                            <option value="3">3rd Notice</option>
-                            <option value="4">Hearing Letter</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-textarea" name="description" placeholder="Describe the violation..."></textarea>
-                    </div>
-                </form>
+    <form id="violationForm">
+    <div class="form-group">
+        <label class="form-label">Homeowner Name *</label>
+        <input type="text" class="form-input" name="homeowner" required>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Association *</label>
+        <select class="form-select" name="association" required>
+            <option value="">Select Association</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Unit/Address *</label>
+        <input type="text" class="form-input" name="unit" required>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Violation Type *</label>
+        <input type="text" class="form-input" name="violationType" required placeholder="e.g., Parking, Noise, Architectural change">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Rule / Covenant Broken *</label>
+        <input type="text" class="form-input" name="rule" required placeholder="e.g., CC&Rs §4.2 – Parking restrictions">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Current Step *</label>
+        <select class="form-select" name="step" required>
+            <option value="1" selected>1st Notice (Warning)</option>
+            <option value="2">2nd Notice</option>
+            <option value="3">3rd Notice</option>
+            <option value="4">Hearing Letter</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" name="description" placeholder="Describe the violation..."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Attachment Links</label>
+        <textarea class="form-textarea" name="attachments" placeholder="Photos, inspection reports, etc."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Internal Notes / Comments</label>
+        <textarea class="form-textarea" name="internalNotes" placeholder="Officer notes, board direction, CC team members..."></textarea>
+    </div>
+</form>
+
             </div>
             <div class="modal-footer">
                 <button class="secondary-btn" onclick="closeModal('violationModal')">Cancel</button>
