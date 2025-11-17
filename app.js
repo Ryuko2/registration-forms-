@@ -146,9 +146,10 @@ function handleUserLogin(user) {
     // Load data from Firebase
     loadAllData();
 
-    // Make sure we start on the dashboard page
+    // 👉 Make sure we are on the main dashboard
     navigateToPage('dashboard');
 }
+
 
 
 function showLoginScreen() {
