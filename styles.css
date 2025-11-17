@@ -1,0 +1,6 @@
+/* Basic custom styles for LJ Services Group dashboard */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+}
