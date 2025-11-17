@@ -1,37 +1,22 @@
-// ============================================
-// FIREBASE CONFIGURATION
-// LJ Services Group Management Dashboard
-// ============================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your Firebase configuration
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-    apiKey: "AIzaSyAFcJLN8uc29vK6IPPsmEkNE-KRYDsrGV4",
-    authDomain: "lj-services-group.firebaseapp.com",
-    databaseURL: "https://lj-services-group-default-rtdb.firebaseio.com",
-    projectId: "lj-services-group",
-    storageBucket: "lj-services-group.firebasestorage.app",
-    messagingSenderId: "617943691986",
-    appId: "1:617943691986:web:ed3c18f02d68fb8c12cb96"
+  apiKey: "AIzaSyBVVBJ4RylwN5pHmggd7aXKhVD-R9cIW7M",
+  authDomain: "lj-services-group.firebaseapp.com",
+  databaseURL: "https://lj-services-group-default-rtdb.firebaseio.com",
+  projectId: "lj-services-group",
+  storageBucket: "lj-services-group.firebasestorage.app",
+  messagingSenderId: "697032093546",
+  appId: "1:697032093546:web:950d395f0846c65a9eff13",
+  measurementId: "G-179NM33MCX"
 };
 
-// Initialize Firebase (compat)
-firebase.initializeApp(firebaseConfig);
-
-// Core services
-const auth = firebase.auth();
-const database = firebase.database();
-
-// Microsoft OAuth provider (via Firebase Auth)
-const provider = new firebase.auth.OAuthProvider('microsoft.com');
-provider.setCustomParameters({
-    tenant: 'common',
-    prompt: 'select_account'
-});
-
-// Expose for use in other scripts
-window.firebaseAuth = auth;
-window.firebaseDatabase = database;
-window.microsoftProvider = provider;
-
-console.log('✅ Firebase initialized successfully!');
-console.log('📡 Database:', firebaseConfig.databaseURL);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
