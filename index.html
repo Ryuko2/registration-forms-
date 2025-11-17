@@ -706,55 +706,71 @@
         </div>
     </div>
     
-    <!-- Main App -->
-    <div id="mainApp" style="display: flex;">
-    <div id="mainApp" style="display: none;">
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-logo">LJ SERVICES</div>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <div class="nav-item active" data-page="dashboard">
-                    <i class="fas fa-th-large"></i>
-                    <span>Dashboard</span>
-                </div>
-                <div class="nav-item" data-page="tickets">
-                    <i class="fas fa-ticket-alt"></i>
-                    <span>Tickets</span>
-                </div>
-                <div class="nav-item" data-page="workorders">
-                    <i class="fas fa-tools"></i>
-                    <span>Work Orders</span>
-                </div>
-                <div class="nav-item" data-page="violations">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Violations</span>
-                </div>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">K</div>
-                    <div class="user-details">
-                        <div class="user-name" id="userName">Loading...</div>
-                        <div class="user-email" id="userEmail">...</div>
-                    </div>
-                </div>
-                <button class="logout-btn" id="logoutBtn">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
-            </div>
-        </aside>
+   <!-- Main App -->
+<div id="mainApp" style="display: none; height: 100vh; background: #f8fafc; display: flex;">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">LJ SERVICES</div>
+        </div>
         
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Dashboard Page -->
-            <div id="dashboardPage" class="page">
-                <div class="page-header">
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Overview of all your properties and tasks</p>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-page="dashboard">
+                <i class="fas fa-th-large"></i>
+                <span>Dashboard</span>
+            </div>
+            <div class="nav-item" data-page="tickets">
+                <i class="fas fa-ticket-alt"></i>
+                <span>Tickets</span>
+            </div>
+            <div class="nav-item" data-page="workorders">
+                <i class="fas fa-tools"></i>
+                <span>Work Orders</span>
+            </div>
+            <div class="nav-item" data-page="violations">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Violations</span>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">K</div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-email" id="userEmail">...</div>
                 </div>
+            </div>
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="page">
+            ...
+            <!-- (keep all your existing Dashboard HTML here) -->
+        </div>
+
+        <!-- Tickets Page -->
+        <div id="ticketsPage" class="page hidden">
+            ...
+        </div>
+
+        <!-- Work Orders Page -->
+        <div id="workordersPage" class="page hidden">
+            ...
+        </div>
+
+        <!-- Violations Page -->
+        <div id="violationsPage" class="page hidden">
+            ...
+        </div>
+    </main>
+</div>
+
                 
                 <!-- Stats -->
                 <div class="stats-grid">
