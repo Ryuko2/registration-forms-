@@ -1,11 +1,9 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// ============================================
+// FIREBASE CONFIGURATION
+// LJ Services Ticket System
+// ============================================
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Your Firebase configuration (from Firebase console)
 const firebaseConfig = {
   apiKey: "AIzaSyBVVBJ4RylwN5pHmggd7aXKhVD-R9cIW7M",
   authDomain: "lj-services-group.firebaseapp.com",
@@ -17,6 +15,35 @@ const firebaseConfig = {
   measurementId: "G-179NM33MCX"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// ============================================
+// INITIALIZE FIREBASE (compat version)
+// ============================================
+
+// This uses the global "firebase" object from the CDN scripts in index.html
+firebase.initializeApp(firebaseConfig);
+
+// Core services
+const auth = firebase.auth();
+const database = firebase.database();
+
+// ============================================
+// MICROSOFT LOGIN VIA FIREBASE AUTH
+// (You still need to configure Microsoft provider in Firebase console)
+// ============================================
+
+const provider = new firebase.auth.OAuthProvider('microsoft.com');
+provider.setCustomParameters({
+  tenant: '3de3b465-7bd9-4050-9925-ffcb715a664e', // your tenant ID
+  prompt: 'select_account'
+});
+
+// ============================================
+// EXPOSE FOR app.js
+// ============================================
+
+window.firebaseAuth = auth;
+window.firebaseDatabase = database;
+window.microsoftProvider = provider;
+
+console.log('✅ Firebase initialized successfully!');
+console.log('📡 Database:', firebaseConfig.databaseURL);
