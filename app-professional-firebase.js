@@ -9,8 +9,7 @@ const msalConfig = {
         clientId: "9490235a-076b-464a-a4b7-c2a1b1156fe1",
         authority: "https://login.microsoftonline.com/common",
         // Must match the SPA redirect URI configured in Azure
-        redirectUri: "https://ryuko2.github.io/registration-forms/index.html"
-
+        redirectUri: "https://ryuko2.github.io/registration-forms-/index.html"
     }
 };
 
@@ -63,7 +62,12 @@ function initApp() {
 
 // Load settings from Firebase
 async function loadSettingsFromFirebase() {
-    if (typeof firebase === 'undefined' || !firebase.database) {
+    if (
+        typeof firebase === 'undefined' ||
+        !firebase.database ||
+        !firebase.apps ||
+        firebase.apps.length === 0
+    ) {
         console.log('⏳ Waiting for Firebase...');
         setTimeout(loadSettingsFromFirebase, 500);
         return;
@@ -197,7 +201,12 @@ function showDashboard() {
 
 // Wait for Firebase to initialize
 function waitForFirebase() {
-    if (typeof firebase === 'undefined' || !firebase.database) {
+    if (
+        typeof firebase === 'undefined' ||
+        !firebase.database ||
+        !firebase.apps ||
+        firebase.apps.length === 0
+    ) {
         console.log('⏳ Waiting for Firebase...');
         setTimeout(waitForFirebase, 500);
         return;
