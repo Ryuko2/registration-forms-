@@ -9,7 +9,8 @@ const msalConfig = {
         clientId: "9490235a-076b-464a-a4b7-c2a1b1156fe1",
         authority: "https://login.microsoftonline.com/common",
         // Must match the SPA redirect URI configured in Azure
-        redirectUri: "https://ryuko2.github.io/ticket-system/index.html"
+        redirectUri: "https://ryuko2.github.io/registration-forms/index.html"
+
     }
 };
 
