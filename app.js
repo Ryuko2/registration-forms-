@@ -145,7 +145,11 @@ function handleUserLogin(user) {
     
     // Load data from Firebase
     loadAllData();
+
+    // Make sure we start on the dashboard page
+    navigateToPage('dashboard');
 }
+
 
 function showLoginScreen() {
     document.getElementById('loginScreen').style.display = 'flex';
