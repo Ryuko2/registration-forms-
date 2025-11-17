@@ -1,954 +1,560 @@
 // ============================================
-// MAIN APPLICATION JAVASCRIPT
-// LJ Services Group Management Dashboard
+// LJ SERVICES GROUP - CRM DASHBOARD
+// Firebase + Multi-dashboard UI
 // ============================================
 
-// Global variables
-let currentUser = null;
-let tickets = [];
-let workOrders = [];
-let violations = [];
-let currentPage = 'dashboard';
+console.log("🚀 Loading LJ Services CRM app.js...");
 
-// 19 LJ Services Associations
-const ASSOCIATIONS = [
-    "Anthony Gardens (ANT)",
-    "Bayshore Treasure Condominium (BTC)",
-    "Cambridge (CAM)",
-    "Eastside Condominium (EAST)",
-    "Enclave Waterside Villas (EWVCA)",
-    "Futura Sansovino (FSCA)",
-    "Island Point South (IPSCA)",
-    "Michelle Condominium (MICH)",
-    "Monterrey Condominium (MTC)",
-    "Normandy Shores (NORM)",
-    "Oxford Gates (OX)",
-    "Palms Of Sunset (POSS)",
-    "Patricia Condominium (PAT)",
-    "Ritz Royal (RITZ)",
-    "Sage Condominium (SAGE)",
-    "The Niche (NICHE)",
-    "Tower Gates (TWG)",
-    "Vizcaya Villas (VVC)",
-    "Wilton Terrace (WTC)"
-];
+const LJ_STATE = {
+  db: null,
+  tickets: {},      // Tickets Dashboard
+  workOrders: {},   // Work Orders Dashboard
+  violations: {},   // Violations Dashboard
+};
 
-// ============================================
-// INITIALIZATION
-// ============================================
+// ---------- Initialization ----------
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Initializing LJ Services Dashboard...');
-    
-    // Setup authentication state listener
-    firebaseAuth.onAuthStateChanged(user => {
-        if (user) {
-            handleUserLogin(user);
-        } else {
-            showLoginScreen();
-        }
-    });
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Populate association dropdowns
-    populateAssociationDropdowns();
-    
-    // Setup mobile menu
-    setupMobileMenu();
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    initFirebaseBinding();
+    initUserProfile();
+    initDashboardNavigation();
+    initTicketDrawer();
+    initRealtimeListeners();
+    initLogoutButton();
+    console.log("✅ Application initialized successfully!");
+  } catch (err) {
+    console.error("❌ Error initializing app:", err);
+  }
 });
 
-// ============================================
-// AUTHENTICATION
-// ============================================
+function initFirebaseBinding() {
+  if (!window.firebase || !firebase.apps.length) {
+    console.error("Firebase is not initialized. Check firebase-config.js.");
+    return;
+  }
+  LJ_STATE.db = firebase.database();
+  console.log("🔥 Firebase database ready:", LJ_STATE.db.ref().toString());
 
-function setupEventListeners() {
-    // Microsoft login button
-    const loginBtn = document.getElementById('microsoftLoginBtn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', handleMicrosoftLogin);
-    }
-    
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
-    }
-    
-    // Navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const page = item.dataset.page;
-            navigateToPage(page);
-        });
+  const dbUrlLabel = document.getElementById("dbUrlLabel");
+  if (dbUrlLabel && firebase.apps[0].options.databaseURL) {
+    dbUrlLabel.textContent = firebase.apps[0].options.databaseURL;
+  }
+}
+
+// ---------- User / Profile ----------
+
+function initUserProfile() {
+  const nameEl = document.getElementById("userName");
+  const emailEl = document.getElementById("userEmail");
+
+  const user = window.currentUser || {
+    name: "Kevin R",
+    email: "kevinr@ljservicesgroup.com",
+  };
+
+  if (nameEl) nameEl.textContent = user.name || "User";
+  if (emailEl) emailEl.textContent = user.email || "";
+
+  console.log("✅ User logged in:", user.email);
+}
+
+// Optional logout wiring (you can replace with your MSAL logic)
+function initLogoutButton() {
+  const btn = document.getElementById("logoutBtn");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    alert("Here you can plug your MSAL logout logic.");
+  });
+}
+
+// ---------- Dashboard Switching (tabs + mobile select) ----------
+
+function initDashboardNavigation() {
+  const tabButtons = document.querySelectorAll(".dashboard-tab");
+  const views = document.querySelectorAll("[data-dashboard-view]");
+  const mobileSelect = document.getElementById("mobileDashboardSelect");
+  const titleEl = document.getElementById("dashboardTitle");
+  const subtitleEl = document.getElementById("dashboardSubtitle");
+
+  const LABELS = {
+    main: {
+      title: "Overview",
+      subtitle:
+        "High-level activity across all tickets, work orders, and violations.",
+    },
+    tickets: {
+      title: "Tickets Dashboard",
+      subtitle: "General tickets and internal tasks.",
+    },
+    workOrders: {
+      title: "Work Orders Dashboard",
+      subtitle: "Vendor-related work orders and maintenance tasks.",
+    },
+    violations: {
+      title: "Violations Dashboard",
+      subtitle: "CC&R infractions and enforcement letters.",
+    },
+  };
+
+  function setDashboard(id) {
+    // Tabs
+    tabButtons.forEach((btn) => {
+      const isActive = btn.dataset.dashboard === id;
+      if (isActive) {
+        btn.classList.remove("text-slate-600", "hover:bg-slate-50");
+        btn.classList.add("bg-indigo-50", "text-indigo-700");
+      } else {
+        btn.classList.add("text-slate-600", "hover:bg-slate-50");
+        btn.classList.remove("bg-indigo-50", "text-indigo-700");
+      }
     });
-    
-    // Create buttons
-    const createTicketBtn = document.getElementById('createTicketBtn');
-    if (createTicketBtn) {
-        createTicketBtn.addEventListener('click', () => openModal('ticketModal'));
-    }
-    
-    const createWorkOrderBtn = document.getElementById('createWorkOrderBtn');
-    if (createWorkOrderBtn) {
-        createWorkOrderBtn.addEventListener('click', () => openModal('workOrderModal'));
-    }
-    
-    const createViolationBtn = document.getElementById('createViolationBtn');
-    if (createViolationBtn) {
-        createViolationBtn.addEventListener('click', () => openModal('violationModal'));
-    }
-    
-    // Filters and search
-    setupFiltersAndSearch();
-}
 
-async function handleMicrosoftLogin() {
-    const loginBtn = document.getElementById('microsoftLoginBtn');
-    const errorDiv = document.getElementById('loginError');
-    
-    loginBtn.disabled = true;
-    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
-    errorDiv.style.display = 'none';
-    
-    try {
-        const result = await firebaseAuth.signInWithPopup(microsoftProvider);
-        console.log('✅ Login successful:', result.user.email);
-    } catch (error) {
-        console.error('❌ Login error:', error);
-        errorDiv.textContent = `Login failed: ${error.message}`;
-        errorDiv.style.display = 'block';
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = '<i class="fab fa-microsoft"></i> Sign in with Microsoft';
-    }
-}
-
-function handleUserLogin(user) {
-    console.log('✅ User logged in:', user.email);
-    
-    currentUser = {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || user.email.split('@')[0],
-        photo: user.photoURL
-    };
-    
-    // Update UI
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('userEmail').textContent = currentUser.email;
-    document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-    
-    // Show main app
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'flex';
-    
-    // Load data from Firebase
-    loadAllData();
-
-    // 👉 Make sure we are on the main dashboard
-    navigateToPage('dashboard');
-}
-
-
-
-function showLoginScreen() {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-}
-
-async function handleLogout() {
-    try {
-        await firebaseAuth.signOut();
-        console.log('✅ User logged out');
-    } catch (error) {
-        console.error('❌ Logout error:', error);
-    }
-}
-
-// ============================================
-// DATA MANAGEMENT
-// ============================================
-
-function loadAllData() {
-    console.log('📡 Loading data from Firebase...');
-    
-    // Load tickets
-    firebaseDatabase.ref('tickets').on('value', snapshot => {
-        tickets = [];
-        snapshot.forEach(child => {
-            tickets.push({
-                id: child.key,
-                ...child.val()
-            });
-        });
-        console.log(`✅ Loaded ${tickets.length} tickets`);
-        renderTickets();
-        updateStats();
+    // Views
+    views.forEach((view) => {
+      const matches = view.dataset.dashboardView === id || (id === "main" && view.dataset.dashboardView === "main");
+      view.classList.toggle("hidden", !matches);
     });
-    
-    // Load work orders
-    firebaseDatabase.ref('workOrders').on('value', snapshot => {
-        workOrders = [];
-        snapshot.forEach(child => {
-            workOrders.push({
-                id: child.key,
-                ...child.val()
-            });
-        });
-        console.log(`✅ Loaded ${workOrders.length} work orders`);
-        renderWorkOrders();
-        updateStats();
+
+    // Mobile select
+    if (mobileSelect && mobileSelect.value !== id) {
+      mobileSelect.value = id;
+    }
+
+    // Title + subtitle
+    if (LABELS[id]) {
+      if (titleEl) titleEl.textContent = LABELS[id].title;
+      if (subtitleEl) subtitleEl.textContent = LABELS[id].subtitle;
+    }
+  }
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.dashboard || "main";
+      setDashboard(id);
     });
-    
-    // Load violations
-    firebaseDatabase.ref('violations').on('value', snapshot => {
-        violations = [];
-        snapshot.forEach(child => {
-            violations.push({
-                id: child.key,
-                ...child.val()
-            });
-        });
-        console.log(`✅ Loaded ${violations.length} violations`);
-        renderViolations();
-        updateStats();
+  });
+
+  if (mobileSelect) {
+    mobileSelect.addEventListener("change", (e) => {
+      setDashboard(e.target.value || "main");
     });
+  }
+
+  setDashboard("main");
 }
 
-// ============================================
-// NAVIGATION
-// ============================================
+// ---------- Ticket Drawer (right side panel) ----------
 
-function navigateToPage(page) {
-    currentPage = page;
-    
-    // Update active nav item
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.page === page) {
-            item.classList.add('active');
-        }
+function initTicketDrawer() {
+  const drawer = document.getElementById("ticketDrawer");
+  const backdrop = document.getElementById("ticketDrawerBackdrop");
+  const form = document.getElementById("ticketForm");
+  const openButtons = document.querySelectorAll('[data-open-drawer="ticket"]');
+  const closeButtons = document.querySelectorAll("[data-close-drawer]");
+
+  if (!drawer || !backdrop || !form) {
+    console.warn("Drawer elements not found; skipping drawer init.");
+    return;
+  }
+
+  function openDrawer(options) {
+    const typeField = form.elements["ticketType"];
+    const dashboardField = form.elements["dashboard"];
+    const drawerTitle = document.getElementById("drawerTitle");
+
+    if (typeField && options.type) {
+      typeField.value = options.type;
+    }
+    if (dashboardField && options.dashboard) {
+      dashboardField.value = options.dashboard;
+    }
+
+    if (drawerTitle) {
+      if (options.type === "Work Order") {
+        drawerTitle.textContent = "Create Work Order";
+      } else if (options.type === "Violation") {
+        drawerTitle.textContent = "Create Violation";
+      } else {
+        drawerTitle.textContent = "Create Ticket";
+      }
+    }
+
+    drawer.classList.remove("drawer-enter");
+    drawer.classList.add("drawer-open");
+    backdrop.classList.remove("pointer-events-none");
+    backdrop.classList.remove("opacity-0");
+    backdrop.classList.add("opacity-100");
+
+    drawer.focus();
+  }
+
+  function closeDrawer() {
+    drawer.classList.remove("drawer-open");
+    drawer.classList.add("drawer-enter");
+    backdrop.classList.add("pointer-events-none");
+    backdrop.classList.remove("opacity-100");
+    backdrop.classList.add("opacity-0");
+  }
+
+  openButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      form.reset();
+      const opts = {
+        type: btn.dataset.type || "General",
+        dashboard: btn.dataset.dashboard || "Tickets Dashboard",
+      };
+      openDrawer(opts);
     });
-    
-    // Show/hide pages
-    document.querySelectorAll('.page').forEach(p => {
-        p.classList.add('hidden');
+  });
+
+  closeButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      closeDrawer();
     });
-    
-    const pageElement = document.getElementById(`${page}Page`);
-    if (pageElement) {
-        pageElement.classList.remove('hidden');
-    }
-    
-    // Close mobile menu
-    closeMobileMenu();
-    
-    // Render appropriate content
-    switch(page) {
-        case 'dashboard':
-            renderDashboard();
-            break;
-        case 'tickets':
-            renderTickets();
-            break;
-        case 'workorders':
-            renderWorkOrders();
-            break;
-        case 'violations':
-            renderViolations();
-            break;
-    }
-}
+  });
 
-// ============================================
-// MODAL MANAGEMENT
-// ============================================
+  backdrop.addEventListener("click", () => {
+    closeDrawer();
+  });
 
-function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.add('active');
-        
-        // Clear form if it exists
-        const form = modal.querySelector('form');
-        if (form) {
-            form.reset();
-        }
-    }
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('active');
-    }
-}
-
-// Close modal when clicking outside
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
-    }
-});
-
-// ============================================
-// TICKETS
-// ============================================
-async function saveTicket() {
-    const form = document.getElementById('ticketForm');
-    const formData = new FormData(form);
-
-    const now = new Date().toISOString();
-    const refNumber = `T-${Date.now()}`; // simple auto ID
-
-    const ticket = {
-        ticketType: formData.get('ticketType') || 'general',
-        ticketId: refNumber,
-        title: formData.get('title'),
-        association: formData.get('association'),
-        dashboard: formData.get('dashboard') || 'tickets',
-        priority: formData.get('priority'),
-        status: formData.get('status'),
-        description: formData.get('description') || '',
-        assignedTo: formData.get('assignedTo') || '',
-        vendor: formData.get('vendor') || '',
-        attachments: formData.get('attachments') || '',
-        internalNotes: formData.get('internalNotes') || '',
-        createdBy: currentUser.name,
-        createdAt: now,
-        updatedAt: now
-    };
-
-    try {
-        await firebaseDatabase.ref('tickets').push(ticket);
-        console.log('✅ Ticket created successfully');
-        closeModal('ticketModal');
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createTicketFromForm(form)
+      .then(() => {
+        closeDrawer();
         form.reset();
-    } catch (error) {
-        console.error('❌ Error creating ticket:', error);
-        alert('Failed to create ticket. Please try again.');
-    }
+      })
+      .catch((err) => {
+        console.error("Error saving ticket:", err);
+        alert("There was a problem saving the ticket. Check console for details.");
+      });
+  });
 }
-function viewTicket(ticketId) {
-    const ticket = tickets.find(t => t.id === ticketId);
-    if (!ticket) return;
 
-    const newStatus = prompt(
-        `Ticket: ${ticket.title}\n\nCurrent status: ${ticket.status}\n\nEnter new status (open, in-progress, completed, closed) or leave blank to keep:`,
-        ticket.status
-    );
+// ---------- Create Ticket (save to Firebase) ----------
 
-    if (newStatus && newStatus !== ticket.status) {
-        firebaseDatabase.ref(`tickets/${ticketId}`).update({
-            status: newStatus,
-            updatedAt: new Date().toISOString()
-        });
-    }
+function createTicketFromForm(form) {
+  if (!LJ_STATE.db) {
+    return Promise.reject(new Error("Database not ready"));
+  }
+
+  const get = (name) =>
+    form.elements[name] ? form.elements[name].value.trim() : "";
+
+  const now = new Date();
+  const iso = now.toISOString();
+
+  let dashboard = get("dashboard") || "Tickets Dashboard";
+  const type = get("ticketType") || "General";
+
+  let path = "tickets";
+  if (dashboard === "Work Orders Dashboard" || type === "Work Order") {
+    path = "workOrders";
+    dashboard = "Work Orders Dashboard";
+  } else if (dashboard === "Violations Dashboard" || type === "Violation") {
+    path = "violations";
+    dashboard = "Violations Dashboard";
+  }
+
+  const title = get("title");
+  const association = get("association");
+
+  if (!title) {
+    alert("Please add a title for the ticket.");
+    return Promise.resolve();
+  }
+  if (!association) {
+    alert("Please specify the association.");
+    return Promise.resolve();
+  }
+
+  const ticketRef = LJ_STATE.db.ref(path).push();
+  const referenceNumber = `LJ-${Date.now().toString(36).toUpperCase()}`;
+
+  const ticket = {
+    id: ticketRef.key,
+    referenceNumber,
+    type,
+    dashboard,
+    title,
+    association,
+    priority: get("priority") || "Medium",
+    status: get("status") || "Open",
+    assignedTo: get("assignedTo") || "",
+    vendor: get("vendor") || "",
+    description: get("description") || "",
+    ruleBroken: get("ruleBroken") || "",
+    attachments: get("attachments") || "",
+    createdAt: iso,
+    createdAtMillis: now.getTime(),
+    createdBy:
+      (window.currentUser && window.currentUser.email) ||
+      "kevinr@ljservicesgroup.com",
+  };
+
+  console.log("💾 Saving ticket:", path, ticket);
+
+  return ticketRef.set(ticket);
 }
-function renderTickets() {
-    const container = document.getElementById('ticketsList');
-    if (!container) return;
-    
-    // Apply filters
-    let filteredTickets = [...tickets];
-    
-    const statusFilter = document.getElementById('ticketStatusFilter')?.value;
-    const associationFilter = document.getElementById('ticketAssociationFilter')?.value;
-    const searchQuery = document.getElementById('ticketSearch')?.value.toLowerCase();
-    
-    if (statusFilter) {
-        filteredTickets = filteredTickets.filter(t => t.status === statusFilter);
-    }
-    
-    if (associationFilter) {
-        filteredTickets = filteredTickets.filter(t => t.association === associationFilter);
-    }
-    
-    if (searchQuery) {
-        filteredTickets = filteredTickets.filter(t => 
-            t.title.toLowerCase().includes(searchQuery) ||
-            (t.description && t.description.toLowerCase().includes(searchQuery))
-        );
-    }
-    
-    // Render tickets
-    if (filteredTickets.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1;">
-                <div class="empty-icon"><i class="fas fa-ticket-alt"></i></div>
-                <div class="empty-title">No tickets found</div>
-                <div class="empty-text">Create your first ticket to get started</div>
+
+// ---------- Firebase listeners (load data for dashboards) ----------
+
+function initRealtimeListeners() {
+  if (!LJ_STATE.db) {
+    console.warn("Realtime listeners skipped (db not ready).");
+    return;
+  }
+
+  LJ_STATE.db.ref("tickets").on("value", (snap) => {
+    LJ_STATE.tickets = snap.val() || {};
+    console.log("📡 Tickets updated from Firebase:", Object.keys(LJ_STATE.tickets).length);
+    renderAll();
+  });
+
+  LJ_STATE.db.ref("workOrders").on("value", (snap) => {
+    LJ_STATE.workOrders = snap.val() || {};
+    console.log("📡 Work orders updated from Firebase:", Object.keys(LJ_STATE.workOrders).length);
+    renderAll();
+  });
+
+  LJ_STATE.db.ref("violations").on("value", (snap) => {
+    LJ_STATE.violations = snap.val() || {};
+    console.log("📡 Violations updated from Firebase:", Object.keys(LJ_STATE.violations).length);
+    renderAll();
+  });
+}
+
+// ---------- Rendering helpers ----------
+
+function renderAll() {
+  renderStatCards();
+  renderRecentActivity();
+  renderTables();
+}
+
+function renderStatCards() {
+  const totalTicketsEl = document.getElementById("totalTicketsCard");
+  const openTicketsEl = document.getElementById("openTicketsCard");
+  const totalWorkOrdersEl = document.getElementById("totalWorkOrdersCard");
+  const totalViolationsEl = document.getElementById("totalViolationsCard");
+
+  const ticketsArray = objToArray(LJ_STATE.tickets);
+  const workOrdersArray = objToArray(LJ_STATE.workOrders);
+  const violationsArray = objToArray(LJ_STATE.violations);
+
+  const allItems = [...ticketsArray, ...workOrdersArray, ...violationsArray];
+
+  const total = allItems.length;
+  const openCount = allItems.filter(
+    (t) => (t.status || "").toLowerCase() !== "closed"
+  ).length;
+
+  if (totalTicketsEl) totalTicketsEl.textContent = String(total);
+  if (openTicketsEl) openTicketsEl.textContent = String(openCount);
+  if (totalWorkOrdersEl)
+    totalWorkOrdersEl.textContent = String(workOrdersArray.length);
+  if (totalViolationsEl)
+    totalViolationsEl.textContent = String(violationsArray.length);
+}
+
+function renderRecentActivity() {
+  const container = document.getElementById("recentActivityList");
+  if (!container) return;
+
+  const items = [
+    ...objToArray(LJ_STATE.tickets).map((t) => ({ ...t, source: "Ticket" })),
+    ...objToArray(LJ_STATE.workOrders).map((t) => ({
+      ...t,
+      source: "Work Order",
+    })),
+    ...objToArray(LJ_STATE.violations).map((t) => ({
+      ...t,
+      source: "Violation",
+    })),
+  ];
+
+  if (!items.length) {
+    container.innerHTML =
+      '<p class="text-xs text-slate-400 py-4 text-center">No activity yet. Create your first ticket to get started.</p>';
+    return;
+  }
+
+  items.sort((a, b) => (b.createdAtMillis || 0) - (a.createdAtMillis || 0));
+  const latest = items.slice(0, 10);
+
+  container.innerHTML = latest
+    .map((item) => {
+      const dateLabel = item.createdAt
+        ? new Date(item.createdAt).toLocaleString()
+        : "";
+      const badgeClass =
+        item.source === "Work Order"
+          ? "bg-amber-50 text-amber-700"
+          : item.source === "Violation"
+          ? "bg-rose-50 text-rose-700"
+          : "bg-indigo-50 text-indigo-700";
+
+      return `
+        <div class="py-2.5 flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClass}">
+                ${escapeHtml(item.source)}
+              </span>
+              <span class="text-xs text-slate-400 truncate">
+                ${escapeHtml(item.referenceNumber || "")}
+              </span>
             </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = filteredTickets.map(ticket => `
-        <div class="card" onclick="viewTicket('${ticket.id}')">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">${ticket.title}</div>
-                    <div class="card-meta">
-                        <span class="badge badge-${ticket.status}">${ticket.status.replace('-', ' ')}</span>
-                        <span class="badge badge-${ticket.priority}">${ticket.priority}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card-content">
-                <p><i class="fas fa-building"></i> ${ticket.association}</p>
-                ${ticket.description ? `<p style="margin-top: 8px;">${ticket.description.substring(0, 100)}${ticket.description.length > 100 ? '...' : ''}</p>` : ''}
-            </div>
-            <div class="card-footer">
-                <span><i class="fas fa-user"></i> ${ticket.createdBy}</span>
-                <span><i class="fas fa-clock"></i> ${formatDate(ticket.createdAt)}</span>
-            </div>
+            <p class="text-sm font-medium text-slate-900 mt-0.5 truncate">
+              ${escapeHtml(item.title || "")}
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5 truncate">
+              ${escapeHtml(item.association || "")}
+            </p>
+          </div>
+          <div class="text-right">
+            <p class="text-[11px] text-slate-400 mb-1">${escapeHtml(
+              item.status || "Open"
+            )}</p>
+            <p class="text-[10px] text-slate-400">${escapeHtml(
+              dateLabel || ""
+            )}</p>
+          </div>
         </div>
-    `).join('');
+      `;
+    })
+    .join("");
 }
 
-function viewTicket(ticketId) {
-    const ticket = tickets.find(t => t.id === ticketId);
-    if (!ticket) return;
-    
-    // Create a detail modal (you can expand this)
-    alert(`Ticket: ${ticket.title}\n\nStatus: ${ticket.status}\nAssociation: ${ticket.association}\nPriority: ${ticket.priority}\n\nDescription: ${ticket.description || 'No description'}`);
+function renderTables() {
+  renderSimpleTable(
+    "ticketsTableBody",
+    objToArray(LJ_STATE.tickets),
+    "ticket"
+  );
+  renderSimpleTable(
+    "workOrdersTableBody",
+    objToArray(LJ_STATE.workOrders),
+    "workOrder"
+  );
+  renderSimpleTable(
+    "violationsTableBody",
+    objToArray(LJ_STATE.violations),
+    "violation"
+  );
 }
 
-// ============================================
-// WORK ORDERS
-// ============================================
+function renderSimpleTable(tbodyId, items, type) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
 
-async function saveWorkOrder() {
-    const form = document.getElementById('workOrderForm');
-    const formData = new FormData(form);
+  if (!items.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="px-3 py-4 text-center text-xs text-slate-400">
+          No ${escapeHtml(type)}s yet. Use the button above to create one.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
-    const now = new Date().toISOString();
-    const refNumber = `WO-${Date.now()}`;
+  tbody.innerHTML = items
+    .map((item) => {
+      const statusClass =
+        (item.status || "").toLowerCase() === "closed"
+          ? "bg-emerald-50 text-emerald-700"
+          : (item.status || "").toLowerCase() === "in progress"
+          ? "bg-amber-50 text-amber-700"
+          : "bg-sky-50 text-sky-700";
 
-    const workOrder = {
-        reference: refNumber,
-        title: formData.get('title'),
-        association: formData.get('association'),
-        type: formData.get('type'),
-        status: formData.get('status'),
-        description: formData.get('description') || '',
-        assignedTo: formData.get('assignedTo') || '',
-        vendor: formData.get('vendor') || '',
-        attachments: formData.get('attachments') || '',
-        internalNotes: formData.get('internalNotes') || '',
-        dashboard: 'workorders',
-        createdBy: currentUser.name,
-        createdAt: now,
-        updatedAt: now
-    };
+      const priorityClass =
+        (item.priority || "").toLowerCase() === "urgent"
+          ? "bg-rose-50 text-rose-700"
+          : (item.priority || "").toLowerCase() === "high"
+          ? "bg-amber-50 text-amber-700"
+          : "bg-slate-50 text-slate-600";
 
-    try {
-        await firebaseDatabase.ref('workOrders').push(workOrder);
-        console.log('✅ Work order created successfully');
-        closeModal('workOrderModal');
-        form.reset();
-    } catch (error) {
-        console.error('❌ Error creating work order:', error);
-        alert('Failed to create work order. Please try again.');
-    }
-}
+      const ruleOrVendor =
+        type === "workOrder"
+          ? item.vendor || "–"
+          : type === "violation"
+          ? item.ruleBroken || "–"
+          : item.priority || "–";
 
-function viewWorkOrder(workOrderId) {
-    const workOrder = workOrders.find(wo => wo.id === workOrderId);
-    if (!workOrder) return;
-    
-    const newStatus = prompt(
-        `Work Order: ${workOrder.title}\n\nCurrent status: ${workOrder.status}\n\nEnter new status (pending, in-progress, completed) or leave blank to keep:`,
-        workOrder.status
-    );
-
-    if (newStatus && newStatus !== workOrder.status) {
-        firebaseDatabase.ref(`workOrders/${workOrderId}`).update({
-            status: newStatus,
-            updatedAt: new Date().toISOString()
-        });
-    }
-}
-
-// PDF: Vendor Letter
-function generateWorkOrderLetter(workOrderId) {
-    const workOrder = workOrders.find(wo => wo.id === workOrderId);
-    if (!workOrder) return;
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.text("Work Order / Vendor Letter", 20, 20);
-
-    doc.setFontSize(11);
-    let y = 35;
-    doc.text(`Reference: ${workOrder.reference}`, 20, y); y += 6;
-    doc.text(`Association: ${workOrder.association}`, 20, y); y += 6;
-    doc.text(`Type: ${workOrder.type}`, 20, y); y += 6;
-    doc.text(`Status: ${workOrder.status}`, 20, y); y += 6;
-    doc.text(`Vendor: ${workOrder.vendor || 'N/A'}`, 20, y); y += 10;
-
-    doc.text("Description:", 20, y); y += 6;
-    doc.text(doc.splitTextToSize(workOrder.description || 'No description provided.', 170), 20, y);
-
-    doc.save(`work-order-${workOrder.reference}.pdf`);
-}
-
-function renderWorkOrders() {
-    const container = document.getElementById('workOrdersList');
-    if (!container) return;
-    
-    // Apply filters
-    let filteredWorkOrders = [...workOrders];
-    
-    const statusFilter = document.getElementById('workOrderStatusFilter')?.value;
-    const associationFilter = document.getElementById('workOrderAssociationFilter')?.value;
-    const searchQuery = document.getElementById('workOrderSearch')?.value.toLowerCase();
-    
-    if (statusFilter) {
-        filteredWorkOrders = filteredWorkOrders.filter(wo => wo.status === statusFilter);
-    }
-    
-    if (associationFilter) {
-        filteredWorkOrders = filteredWorkOrders.filter(wo => wo.association === associationFilter);
-    }
-    
-    if (searchQuery) {
-        filteredWorkOrders = filteredWorkOrders.filter(wo => 
-            wo.title.toLowerCase().includes(searchQuery) ||
-            (wo.description && wo.description.toLowerCase().includes(searchQuery))
-        );
-    }
-    
-    // Render work orders
-    if (filteredWorkOrders.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1;">
-                <div class="empty-icon"><i class="fas fa-tools"></i></div>
-                <div class="empty-title">No work orders found</div>
-                <div class="empty-text">Create your first work order to get started</div>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = filteredWorkOrders.map(wo => `
-        <div class="card" onclick="viewWorkOrder('${wo.id}')">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">${wo.title}</div>
-                    <div class="card-meta">
-                        <span class="badge badge-${wo.status}">${wo.status.replace('-', ' ')}</span>
-                        <span class="badge" style="background: #e0e7ff; color: #3730a3;">${wo.type}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card-content">
-                <p><i class="fas fa-building"></i> ${wo.association}</p>
-                ${wo.description ? `<p style="margin-top: 8px;">${wo.description.substring(0, 100)}${wo.description.length > 100 ? '...' : ''}</p>` : ''}
-            </div>
-            <div class="card-footer">
-                <span><i class="fas fa-user"></i> ${wo.createdBy}</span>
-                <span><i class="fas fa-clock"></i> ${formatDate(wo.createdAt)}</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-
-
-// ============================================
-// VIOLATIONS
-// ============================================
-
-async function saveViolation() {
-    const form = document.getElementById('violationForm');
-    const formData = new FormData(form);
-
-    const now = new Date().toISOString();
-    const refNumber = `V-${Date.now()}`;
-
-    const violation = {
-        reference: refNumber,
-        homeowner: formData.get('homeowner'),
-        association: formData.get('association'),
-        unit: formData.get('unit'),
-        violationType: formData.get('violationType'),
-        rule: formData.get('rule'),
-        step: parseInt(formData.get('step')),
-        description: formData.get('description') || '',
-        attachments: formData.get('attachments') || '',
-        internalNotes: formData.get('internalNotes') || '',
-        createdBy: currentUser.name,
-        createdAt: now,
-        updatedAt: now,
-        status: 'active',
-        dashboard: 'violations'
-    };
-
-    try {
-        await firebaseDatabase.ref('violations').push(violation);
-        console.log('✅ Violation created successfully');
-        closeModal('violationModal');
-        form.reset();
-    } catch (error) {
-        console.error('❌ Error creating violation:', error);
-        alert('Failed to create violation. Please try again.');
-    }
-
-
-// PDF: Violation Letter
-function generateViolationLetter(violationId) {
-    const violation = violations.find(v => v.id === violationId);
-    if (!violation) return;
-
-    const stepLabels = {
-        1: '1st Notice (Warning)',
-        2: '2nd Notice',
-        3: '3rd Notice',
-        4: 'Hearing Letter'
-    };
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    doc.setFontSize(16);
-    doc.text("HOA Violation Notice", 20, 20);
-
-    doc.setFontSize(11);
-    let y = 35;
-    doc.text(`Reference: ${violation.reference}`, 20, y); y += 6;
-    doc.text(`Homeowner: ${violation.homeowner}`, 20, y); y += 6;
-    doc.text(`Association: ${violation.association}`, 20, y); y += 6;
-    doc.text(`Unit: ${violation.unit}`, 20, y); y += 6;
-    doc.text(`Violation Type: ${violation.violationType}`, 20, y); y += 6;
-    doc.text(`Rule / Covenant: ${violation.rule}`, 20, y); y += 6;
-    doc.text(`Current Step: ${stepLabels[violation.step]}`, 20, y); y += 10;
-
-    doc.text("Description:", 20, y); y += 6;
-    doc.text(doc.splitTextToSize(violation.description || 'No description provided.', 170), 20, y);
-
-    doc.save(`violation-${violation.reference}.pdf`);
-}
-
-
-function renderViolations() {
-    const container = document.getElementById('violationsList');
-    if (!container) return;
-    
-    // Apply filters
-    let filteredViolations = [...violations];
-    
-    const stepFilter = document.getElementById('violationStepFilter')?.value;
-    const associationFilter = document.getElementById('violationAssociationFilter')?.value;
-    const searchQuery = document.getElementById('violationSearch')?.value.toLowerCase();
-    
-    if (stepFilter) {
-        filteredViolations = filteredViolations.filter(v => v.step === parseInt(stepFilter));
-    }
-    
-    if (associationFilter) {
-        filteredViolations = filteredViolations.filter(v => v.association === associationFilter);
-    }
-    
-    if (searchQuery) {
-        filteredViolations = filteredViolations.filter(v => 
-            v.homeowner.toLowerCase().includes(searchQuery) ||
-            v.violationType.toLowerCase().includes(searchQuery) ||
-            (v.description && v.description.toLowerCase().includes(searchQuery))
-        );
-    }
-    
-    // Render violations
-    if (filteredViolations.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1;">
-                <div class="empty-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="empty-title">No violations found</div>
-                <div class="empty-text">Create your first violation notice to get started</div>
-            </div>
-        `;
-        return;
-    }
-    
-    const stepLabels = {
-        1: '1st Notice',
-        2: '2nd Notice',
-        3: '3rd Notice',
-        4: 'Hearing Letter'
-    };
-    
-    const stepColors = {
-        1: 'background: #fef3c7; color: #92400e;',
-        2: 'background: #fed7aa; color: #9a3412;',
-        3: 'background: #fee2e2; color: #991b1b;',
-        4: 'background: #fecaca; color: #7f1d1d;'
-    };
-    
-    container.innerHTML = filteredViolations.map(v => `
-        <div class="card" onclick="viewViolation('${v.id}')">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">${v.homeowner}</div>
-                    <div class="card-meta">
-                        <span class="badge" style="${stepColors[v.step]}">${stepLabels[v.step]}</span>
-                        <span class="badge" style="background: #e0e7ff; color: #3730a3;">${v.violationType}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="card-content">
-                <p><i class="fas fa-building"></i> ${v.association}</p>
-                <p><i class="fas fa-home"></i> Unit ${v.unit}</p>
-                ${v.description ? `<p style="margin-top: 8px;">${v.description.substring(0, 100)}${v.description.length > 100 ? '...' : ''}</p>` : ''}
-            </div>
-            <div class="card-footer">
-                <span><i class="fas fa-user"></i> ${v.createdBy}</span>
-                <span><i class="fas fa-clock"></i> ${formatDate(v.createdAt)}</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-}
-
-function viewViolation(violationId) {
-    const violation = violations.find(v => v.id === violationId);
-    if (!violation) return;
-    
-    const stepLabels = {
-        1: '1st Notice (Warning)',
-        2: '2nd Notice',
-        3: '3rd Notice',
-        4: 'Hearing Letter'
-    };
-    
-    const newStep = prompt(
-        `Violation: ${violation.homeowner}\n\nCurrent step: ${stepLabels[violation.step]}\n\nEnter new step (1–4) or leave blank to keep:`,
-        violation.step
-    );
-
-    if (newStep && parseInt(newStep) !== violation.step) {
-        firebaseDatabase.ref(`violations/${violationId}`).update({
-            step: parseInt(newStep),
-            updatedAt: new Date().toISOString()
-        });
-    }
-}
-    
-    alert(`Violation: ${violation.homeowner}\n\nStep: ${stepLabels[violation.step]}\nType: ${violation.violationType}\nAssociation: ${violation.association}\nUnit: ${violation.unit}\n\nDescription: ${violation.description || 'No description'}`);
-}
-
-// ============================================
-// DASHBOARD
-// ============================================
-
-function renderDashboard() {
-    const container = document.getElementById('recentActivity');
-    if (!container) return;
-    
-    // Combine all items and sort by date
-    const allItems = [
-        ...tickets.map(t => ({ ...t, type: 'ticket' })),
-        ...workOrders.map(wo => ({ ...wo, type: 'workorder' })),
-        ...violations.map(v => ({ ...v, type: 'violation' }))
-    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
-    
-    if (allItems.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="grid-column: 1 / -1;">
-                <div class="empty-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="empty-title">No activity yet</div>
-                <div class="empty-text">Start creating tickets, work orders, or violations</div>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = allItems.map(item => {
-        const typeConfig = {
-            ticket: { icon: 'fa-ticket-alt', label: 'Ticket', color: '#667eea' },
-            workorder: { icon: 'fa-tools', label: 'Work Order', color: '#764ba2' },
-            violation: { icon: 'fa-exclamation-triangle', label: 'Violation', color: '#dc2626' }
-        };
-        
-        const config = typeConfig[item.type];
-        
-        return `
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <div class="card-title">${item.title || item.homeowner || 'Untitled'}</div>
-                        <div class="card-meta">
-                            <span class="badge" style="background: ${config.color}20; color: ${config.color};">
-                                <i class="fas ${config.icon}"></i> ${config.label}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-content">
-                    <p><i class="fas fa-building"></i> ${item.association}</p>
-                </div>
-                <div class="card-footer">
-                    <span><i class="fas fa-user"></i> ${item.createdBy}</span>
-                    <span><i class="fas fa-clock"></i> ${formatDate(item.createdAt)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function updateStats() {
-    // Update ticket stats
-    const totalTicketsEl = document.getElementById('totalTickets');
-    const openTicketsEl = document.getElementById('openTickets');
-    
-    if (totalTicketsEl) totalTicketsEl.textContent = tickets.length;
-    if (openTicketsEl) openTicketsEl.textContent = tickets.filter(t => t.status === 'open').length;
-    
-    // Update work order stats
-    const totalWorkOrdersEl = document.getElementById('totalWorkOrders');
-    if (totalWorkOrdersEl) totalWorkOrdersEl.textContent = workOrders.length;
-    
-    // Update violation stats
-    const totalViolationsEl = document.getElementById('totalViolations');
-    if (totalViolationsEl) totalViolationsEl.textContent = violations.length;
-    
-    // Update dashboard if on dashboard page
-    if (currentPage === 'dashboard') {
-        renderDashboard();
-    }
-}
-
-// ============================================
-// FILTERS AND SEARCH
-// ============================================
-
-function setupFiltersAndSearch() {
-    // Ticket filters
-    const ticketStatusFilter = document.getElementById('ticketStatusFilter');
-    const ticketAssociationFilter = document.getElementById('ticketAssociationFilter');
-    const ticketSearch = document.getElementById('ticketSearch');
-    
-    if (ticketStatusFilter) ticketStatusFilter.addEventListener('change', renderTickets);
-    if (ticketAssociationFilter) ticketAssociationFilter.addEventListener('change', renderTickets);
-    if (ticketSearch) ticketSearch.addEventListener('input', renderTickets);
-    
-    // Work order filters
-    const workOrderStatusFilter = document.getElementById('workOrderStatusFilter');
-    const workOrderAssociationFilter = document.getElementById('workOrderAssociationFilter');
-    const workOrderSearch = document.getElementById('workOrderSearch');
-    
-    if (workOrderStatusFilter) workOrderStatusFilter.addEventListener('change', renderWorkOrders);
-    if (workOrderAssociationFilter) workOrderAssociationFilter.addEventListener('change', renderWorkOrders);
-    if (workOrderSearch) workOrderSearch.addEventListener('input', renderWorkOrders);
-    
-    // Violation filters
-    const violationStepFilter = document.getElementById('violationStepFilter');
-    const violationAssociationFilter = document.getElementById('violationAssociationFilter');
-    const violationSearch = document.getElementById('violationSearch');
-    
-    if (violationStepFilter) violationStepFilter.addEventListener('change', renderViolations);
-    if (violationAssociationFilter) violationAssociationFilter.addEventListener('change', renderViolations);
-    if (violationSearch) violationSearch.addEventListener('input', renderViolations);
-}
-
-// ============================================
-// UTILITIES
-// ============================================
-
-function populateAssociationDropdowns() {
-    const selectors = [
-        '#ticketForm select[name="association"]',
-        '#workOrderForm select[name="association"]',
-        '#violationForm select[name="association"]',
-        '#ticketAssociationFilter',
-        '#workOrderAssociationFilter',
-        '#violationAssociationFilter'
-    ];
-    
-    selectors.forEach(selector => {
-        const element = document.querySelector(selector);
-        if (element) {
-            const isFilter = selector.includes('Filter');
-            const options = ASSOCIATIONS.map(assoc => 
-                `<option value="${assoc}">${assoc}</option>`
-            ).join('');
-            
-            if (isFilter) {
-                element.innerHTML = '<option value="">All Associations</option>' + options;
-            } else {
-                element.innerHTML = '<option value="">Select Association</option>' + options;
+      return `
+        <tr class="hover:bg-slate-50">
+          <td class="px-3 py-2 align-top">
+            <p class="text-xs sm:text-sm font-medium text-slate-900 truncate">${escapeHtml(
+              item.title || ""
+            )}</p>
+            <p class="text-[11px] text-slate-400 truncate">${escapeHtml(
+              item.referenceNumber || ""
+            )}</p>
+          </td>
+          <td class="px-3 py-2 align-top text-xs text-slate-600">
+            ${escapeHtml(item.association || "")}
+          </td>
+          <td class="px-3 py-2 align-top text-xs text-slate-600">
+            ${
+              type === "workOrder" || type === "violation"
+                ? escapeHtml(ruleOrVendor)
+                : `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${priorityClass}">
+                     ${escapeHtml(item.priority || "")}
+                   </span>`
             }
-        }
-    });
+          </td>
+          <td class="px-3 py-2 align-top">
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${statusClass}">
+              ${escapeHtml(item.status || "")}
+            </span>
+          </td>
+          <td class="px-3 py-2 align-top text-right">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-100"
+              onclick="handleTicketActions('${escapeAttr(item.id)}','${type}')"
+            >
+              Actions
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString();
+// ---------- Actions & helpers ----------
+
+function handleTicketActions(id, type) {
+  // From here you can integrate PDF / letter generation.
+  // For now we just show a simple menu placeholder.
+  const message =
+    type === "violation"
+      ? "Here you can trigger violation letter PDF generation, including the rule/covenant that was broken, and CC team members."
+      : type === "workOrder"
+      ? "Here you can trigger vendor letter PDF generation and CC a team member."
+      : "Here you can edit the ticket or change its status.";
+  alert(message + "\n\nTicket ID: " + id);
 }
 
-function setupMobileMenu() {
-    const mobileBtn = document.getElementById('mobileMenuBtn');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    const sidebar = document.getElementById('sidebar');
-    
-    // Show mobile button on small screens
-    function checkMobile() {
-        if (window.innerWidth <= 768) {
-            mobileBtn.style.display = 'flex';
-        } else {
-            mobileBtn.style.display = 'none';
-            sidebar.classList.remove('mobile-open');
-            mobileOverlay.classList.remove('active');
-        }
-    }
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    // Toggle menu
-    mobileBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('mobile-open');
-        mobileOverlay.classList.toggle('active');
-    });
-    
-    // Close on overlay click
-    mobileOverlay.addEventListener('click', closeMobileMenu);
+function objToArray(obj) {
+  if (!obj) return [];
+  return Object.keys(obj).map((key) => obj[key]);
 }
 
-function closeMobileMenu() {
-    const sidebar = document.getElementById('sidebar');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    
-    sidebar.classList.remove('mobile-open');
-    mobileOverlay.classList.remove('active');
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-// ============================================
-// GLOBAL EXPORTS
-// ============================================
-
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.saveTicket = saveTicket;
-window.saveWorkOrder = saveWorkOrder;
-window.saveViolation = saveViolation;
-window.viewTicket = viewTicket;
-window.viewWorkOrder = viewWorkOrder;
-window.viewViolation = viewViolation;
-
-console.log('✅ Application initialized successfully!');
+function escapeAttr(str) {
+  if (str == null) return "";
+  return String(str).replace(/'/g, "\\'");
+}
