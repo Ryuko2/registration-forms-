@@ -295,22 +295,31 @@ document.addEventListener('click', (e) => {
 // ============================================
 // TICKETS
 // ============================================
-
 async function saveTicket() {
     const form = document.getElementById('ticketForm');
     const formData = new FormData(form);
-    
+
+    const now = new Date().toISOString();
+    const refNumber = `T-${Date.now()}`; // simple auto ID
+
     const ticket = {
+        ticketType: formData.get('ticketType') || 'general',
+        ticketId: refNumber,
         title: formData.get('title'),
         association: formData.get('association'),
+        dashboard: formData.get('dashboard') || 'tickets',
         priority: formData.get('priority'),
         status: formData.get('status'),
-        description: formData.get('description'),
+        description: formData.get('description') || '',
+        assignedTo: formData.get('assignedTo') || '',
+        vendor: formData.get('vendor') || '',
+        attachments: formData.get('attachments') || '',
+        internalNotes: formData.get('internalNotes') || '',
         createdBy: currentUser.name,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: now,
+        updatedAt: now
     };
-    
+
     try {
         await firebaseDatabase.ref('tickets').push(ticket);
         console.log('✅ Ticket created successfully');
@@ -321,7 +330,22 @@ async function saveTicket() {
         alert('Failed to create ticket. Please try again.');
     }
 }
+function viewTicket(ticketId) {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (!ticket) return;
 
+    const newStatus = prompt(
+        `Ticket: ${ticket.title}\n\nCurrent status: ${ticket.status}\n\nEnter new status (open, in-progress, completed, closed) or leave blank to keep:`,
+        ticket.status
+    );
+
+    if (newStatus && newStatus !== ticket.status) {
+        firebaseDatabase.ref(`tickets/${ticketId}`).update({
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        });
+    }
+}
 function renderTickets() {
     const container = document.getElementById('ticketsList');
     if (!container) return;
@@ -398,18 +422,27 @@ function viewTicket(ticketId) {
 async function saveWorkOrder() {
     const form = document.getElementById('workOrderForm');
     const formData = new FormData(form);
-    
+
+    const now = new Date().toISOString();
+    const refNumber = `WO-${Date.now()}`;
+
     const workOrder = {
+        reference: refNumber,
         title: formData.get('title'),
         association: formData.get('association'),
         type: formData.get('type'),
         status: formData.get('status'),
-        description: formData.get('description'),
+        description: formData.get('description') || '',
+        assignedTo: formData.get('assignedTo') || '',
+        vendor: formData.get('vendor') || '',
+        attachments: formData.get('attachments') || '',
+        internalNotes: formData.get('internalNotes') || '',
+        dashboard: 'workorders',
         createdBy: currentUser.name,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: now,
+        updatedAt: now
     };
-    
+
     try {
         await firebaseDatabase.ref('workOrders').push(workOrder);
         console.log('✅ Work order created successfully');
@@ -419,6 +452,48 @@ async function saveWorkOrder() {
         console.error('❌ Error creating work order:', error);
         alert('Failed to create work order. Please try again.');
     }
+}
+
+function viewWorkOrder(workOrderId) {
+    const workOrder = workOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return;
+    
+    const newStatus = prompt(
+        `Work Order: ${workOrder.title}\n\nCurrent status: ${workOrder.status}\n\nEnter new status (pending, in-progress, completed) or leave blank to keep:`,
+        workOrder.status
+    );
+
+    if (newStatus && newStatus !== workOrder.status) {
+        firebaseDatabase.ref(`workOrders/${workOrderId}`).update({
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        });
+    }
+}
+
+// PDF: Vendor Letter
+function generateWorkOrderLetter(workOrderId) {
+    const workOrder = workOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("Work Order / Vendor Letter", 20, 20);
+
+    doc.setFontSize(11);
+    let y = 35;
+    doc.text(`Reference: ${workOrder.reference}`, 20, y); y += 6;
+    doc.text(`Association: ${workOrder.association}`, 20, y); y += 6;
+    doc.text(`Type: ${workOrder.type}`, 20, y); y += 6;
+    doc.text(`Status: ${workOrder.status}`, 20, y); y += 6;
+    doc.text(`Vendor: ${workOrder.vendor || 'N/A'}`, 20, y); y += 10;
+
+    doc.text("Description:", 20, y); y += 6;
+    doc.text(doc.splitTextToSize(workOrder.description || 'No description provided.', 170), 20, y);
+
+    doc.save(`work-order-${workOrder.reference}.pdf`);
 }
 
 function renderWorkOrders() {
@@ -482,12 +557,7 @@ function renderWorkOrders() {
     `).join('');
 }
 
-function viewWorkOrder(workOrderId) {
-    const workOrder = workOrders.find(wo => wo.id === workOrderId);
-    if (!workOrder) return;
-    
-    alert(`Work Order: ${workOrder.title}\n\nStatus: ${workOrder.status}\nType: ${workOrder.type}\nAssociation: ${workOrder.association}\n\nDescription: ${workOrder.description || 'No description'}`);
-}
+
 
 // ============================================
 // VIOLATIONS
@@ -496,20 +566,28 @@ function viewWorkOrder(workOrderId) {
 async function saveViolation() {
     const form = document.getElementById('violationForm');
     const formData = new FormData(form);
-    
+
+    const now = new Date().toISOString();
+    const refNumber = `V-${Date.now()}`;
+
     const violation = {
+        reference: refNumber,
         homeowner: formData.get('homeowner'),
         association: formData.get('association'),
         unit: formData.get('unit'),
         violationType: formData.get('violationType'),
+        rule: formData.get('rule'),
         step: parseInt(formData.get('step')),
-        description: formData.get('description'),
+        description: formData.get('description') || '',
+        attachments: formData.get('attachments') || '',
+        internalNotes: formData.get('internalNotes') || '',
         createdBy: currentUser.name,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'active'
+        createdAt: now,
+        updatedAt: now,
+        status: 'active',
+        dashboard: 'violations'
     };
-    
+
     try {
         await firebaseDatabase.ref('violations').push(violation);
         console.log('✅ Violation created successfully');
@@ -519,7 +597,42 @@ async function saveViolation() {
         console.error('❌ Error creating violation:', error);
         alert('Failed to create violation. Please try again.');
     }
+
+
+// PDF: Violation Letter
+function generateViolationLetter(violationId) {
+    const violation = violations.find(v => v.id === violationId);
+    if (!violation) return;
+
+    const stepLabels = {
+        1: '1st Notice (Warning)',
+        2: '2nd Notice',
+        3: '3rd Notice',
+        4: 'Hearing Letter'
+    };
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("HOA Violation Notice", 20, 20);
+
+    doc.setFontSize(11);
+    let y = 35;
+    doc.text(`Reference: ${violation.reference}`, 20, y); y += 6;
+    doc.text(`Homeowner: ${violation.homeowner}`, 20, y); y += 6;
+    doc.text(`Association: ${violation.association}`, 20, y); y += 6;
+    doc.text(`Unit: ${violation.unit}`, 20, y); y += 6;
+    doc.text(`Violation Type: ${violation.violationType}`, 20, y); y += 6;
+    doc.text(`Rule / Covenant: ${violation.rule}`, 20, y); y += 6;
+    doc.text(`Current Step: ${stepLabels[violation.step]}`, 20, y); y += 10;
+
+    doc.text("Description:", 20, y); y += 6;
+    doc.text(doc.splitTextToSize(violation.description || 'No description provided.', 170), 20, y);
+
+    doc.save(`violation-${violation.reference}.pdf`);
 }
+
 
 function renderViolations() {
     const container = document.getElementById('violationsList');
@@ -598,6 +711,8 @@ function renderViolations() {
     `).join('');
 }
 
+}
+
 function viewViolation(violationId) {
     const violation = violations.find(v => v.id === violationId);
     if (!violation) return;
@@ -608,6 +723,19 @@ function viewViolation(violationId) {
         3: '3rd Notice',
         4: 'Hearing Letter'
     };
+    
+    const newStep = prompt(
+        `Violation: ${violation.homeowner}\n\nCurrent step: ${stepLabels[violation.step]}\n\nEnter new step (1–4) or leave blank to keep:`,
+        violation.step
+    );
+
+    if (newStep && parseInt(newStep) !== violation.step) {
+        firebaseDatabase.ref(`violations/${violationId}`).update({
+            step: parseInt(newStep),
+            updatedAt: new Date().toISOString()
+        });
+    }
+}
     
     alert(`Violation: ${violation.homeowner}\n\nStep: ${stepLabels[violation.step]}\nType: ${violation.violationType}\nAssociation: ${violation.association}\nUnit: ${violation.unit}\n\nDescription: ${violation.description || 'No description'}`);
 }
