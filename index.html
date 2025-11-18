@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <title>LJ Services – CRM Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      @apply bg-slate-100;
+    }
+
+    .drawer-enter {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    .drawer-open {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Bar -->
+  <header class="w-full bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white font-semibold">
+          LJ
+        </span>
+        <div>
+          <h1 class="text-sm font-semibold text-slate-900">
+            LJ Services Group – Operations CRM
+          </h1>
+          <p class="text-xs text-slate-500">
+            Tickets • Work Orders • Violations • Analytics
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex flex-col items-end">
+          <span id="userName" class="text-sm font-medium text-slate-900">Loading…</span>
+          <span id="userEmail" class="text-xs text-slate-500 truncate max-w-[220px]">–</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            id="logoutBtn"
+            class="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-200"
+          >
+            Logout
+          </button>
+
+          <div
+            class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold"
+          >
+            K
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="hidden md:flex flex-col w-60 bg-white border-r border-slate-200">
+      <div class="px-4 py-4 border-b border-slate-100">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          Dashboards
+        </p>
+        <div class="mt-3 space-y-1">
+          <button
+            type="button"
+            data-dashboard="main"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50"
+          >
+            <span>Overview</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              Main
+            </span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="tickets"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Tickets Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="workOrders"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Work Orders Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            data-dashboard="violations"
+            class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <span>Violations Dashboard</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-auto px-4 py-4 border-t border-slate-100 text-[11px] text-slate-400">
+        <p>Realtime data from Firebase</p>
+        <p class="mt-1">DB: <span class="font-mono text-[10px]" id="dbUrlLabel">–</span></p>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Mobile dashboard selector -->
+        <div class="md:hidden">
+          <label class="block text-xs font-medium text-slate-500 mb-1">Dashboard</label>
+          <select
+            id="mobileDashboardSelect"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="main">Overview</option>
+            <option value="tickets">Tickets Dashboard</option>
+            <option value="workOrders">Work Orders Dashboard</option>
+            <option value="violations">Violations Dashboard</option>
+          </select>
+        </div>
+
+        <!-- Header row with quick actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900" id="dashboardTitle">
+              Overview
+            </h2>
+            <p class="text-xs text-slate-500 mt-1" id="dashboardSubtitle">
+              High-level activity across all tickets, work orders, and violations.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button
+              data-open-drawer="ticket"
+              class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <span>+ Ticket</span>
+            </button>
+            <button
+              data-open-drawer="workOrder"
+              class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              <span>+ Work Order</span>
+            </button>
+            <button
+              data-open-drawer="violation"
+              class="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+            >
+              <span>+ Violation</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <section
+          class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
+          data-dashboard-view="main"
+        >
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-slate-500">Total Items</p>
+              <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700">
+                All dashboards
+              </span>
+            </div>
+            <p id="totalTicketsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Includes tickets, work orders & violations.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-slate-500">Open Items</p>
+              <span class="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] text-sky-700">Active</span>
+            </div>
+            <p id="openTicketsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Currently active or in progress.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-slate-500">Work Orders</p>
+              <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
+                Vendor
+              </span>
+            </div>
+            <p id="totalWorkOrdersCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Maintenance & vendor tasks.</p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-slate-500">Violations</p>
+              <span class="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] text-rose-700">
+                CC&R
+              </span>
+            </div>
+            <p id="totalViolationsCard" class="text-2xl font-semibold text-slate-900">0</p>
+            <p class="text-[11px] text-slate-500">Enforcement & compliance.</p>
+          </div>
+        </section>
+
+        <!-- Recent Activity (Main View) -->
+        <section
+          data-dashboard-view="main"
+          class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-slate-100">
+            <h3 class="text-sm font-semibold text-slate-900">Recent Activity</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Latest tickets, work orders, and violations.</p>
+          </div>
+          <div id="recentActivityList" class="px-5 divide-y divide-slate-100">
+            <p class="text-xs text-slate-400 py-4 text-center">Loading...</p>
+          </div>
+        </section>
+
+        <!-- TICKETS DASHBOARD -->
+        <section data-dashboard-view="tickets" class="hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900">All Tickets</h3>
+                <p class="text-xs text-slate-500 mt-0.5">General tickets and internal tasks</p>
+              </div>
+              <button
+                data-open-drawer="ticket"
+                class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+              >
+                + New Ticket
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-xs text-slate-600 uppercase tracking-wide">
+                  <tr>
+                    <th class="px-3 py-2 font-medium">Ticket</th>
+                    <th class="px-3 py-2 font-medium">Association</th>
+                    <th class="px-3 py-2 font-medium">Priority</th>
+                    <th class="px-3 py-2 font-medium">Status</th>
+                    <th class="px-3 py-2 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ticketsTableBody" class="divide-y divide-slate-100 bg-white">
+                  <tr>
+                    <td colspan="5" class="px-3 py-4 text-center text-xs text-slate-400">
+                      Loading tickets...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- WORK ORDERS DASHBOARD -->
+        <section data-dashboard-view="workOrders" class="hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900">All Work Orders</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Vendor and maintenance tasks</p>
+              </div>
+              <button
+                data-open-drawer="workOrder"
+                class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+              >
+                + New Work Order
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-xs text-slate-600 uppercase tracking-wide">
+                  <tr>
+                    <th class="px-3 py-2 font-medium">Work Order</th>
+                    <th class="px-3 py-2 font-medium">Association</th>
+                    <th class="px-3 py-2 font-medium">Vendor</th>
+                    <th class="px-3 py-2 font-medium">Status</th>
+                    <th class="px-3 py-2 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="workOrdersTableBody" class="divide-y divide-slate-100 bg-white">
+                  <tr>
+                    <td colspan="5" class="px-3 py-4 text-center text-xs text-slate-400">
+                      Loading work orders...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIOLATIONS DASHBOARD -->
+        <section data-dashboard-view="violations" class="hidden space-y-4">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900">All Violations</h3>
+                <p class="text-xs text-slate-500 mt-0.5">CC&R infractions and enforcement</p>
+              </div>
+              <button
+                data-open-drawer="violation"
+                class="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+              >
+                + New Violation
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-xs text-slate-600 uppercase tracking-wide">
+                  <tr>
+                    <th class="px-3 py-2 font-medium">Violation</th>
+                    <th class="px-3 py-2 font-medium">Association</th>
+                    <th class="px-3 py-2 font-medium">Rule Broken</th>
+                    <th class="px-3 py-2 font-medium">Status</th>
+                    <th class="px-3 py-2 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="violationsTableBody" class="divide-y divide-slate-100 bg-white">
+                  <tr>
+                    <td colspan="5" class="px-3 py-4 text-center text-xs text-slate-400">
+                      Loading violations...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Backdrop for all drawers -->
+  <div
+    id="drawerBackdrop"
+    class="fixed inset-0 bg-black pointer-events-none opacity-0 transition-opacity duration-200 z-30"
+  ></div>
+
+  <!-- ========== TICKET DRAWER ========== -->
+  <aside
+    id="ticketDrawer"
+    class="drawer-enter fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 z-40 transition-all duration-200 flex flex-col"
+  >
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+          New Ticket
+        </p>
+        <h2 class="text-sm font-semibold text-slate-900">Create General Ticket</h2>
+      </div>
+      <button
+        type="button"
+        data-close-drawer
+        class="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form id="ticketForm" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Title *</label>
+        <input
+          name="title"
+          type="text"
+          required
+          placeholder="Brief description of the ticket"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Association *</label>
+          <input
+            name="association"
+            type="text"
+            required
+            placeholder="Select association"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Priority</label>
+          <select
+            name="priority"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            name="status"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="Open" selected>Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Assigned To</label>
+          <input
+            name="assignedTo"
+            type="text"
+            placeholder="Team member"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+        <textarea
+          name="description"
+          rows="4"
+          placeholder="Detailed description of the issue or task"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        ></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Attachment Links</label>
+        <input
+          name="attachments"
+          type="text"
+          placeholder="Dropbox/image URLs (comma separated)"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+    </form>
+
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+      <p class="text-[11px] text-slate-500">Reference number will be auto-generated</p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          data-close-drawer
+          class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          form="ticketForm"
+          class="rounded-lg px-4 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          Create Ticket
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========== WORK ORDER DRAWER ========== -->
+  <aside
+    id="workOrderDrawer"
+    class="drawer-enter fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 z-40 transition-all duration-200 flex flex-col"
+  >
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+          New Work Order
+        </p>
+        <h2 class="text-sm font-semibold text-slate-900">Create Work Order</h2>
+      </div>
+      <button
+        type="button"
+        data-close-drawer
+        class="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form id="workOrderForm" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Title *</label>
+        <input
+          name="title"
+          type="text"
+          required
+          placeholder="Work order description"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Association *</label>
+          <input
+            name="association"
+            type="text"
+            required
+            placeholder="Select association"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Vendor *</label>
+          <input
+            name="vendor"
+            type="text"
+            required
+            placeholder="Vendor name"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Priority</label>
+          <select
+            name="priority"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            name="status"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="Open" selected>Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Vendor Contact</label>
+        <input
+          name="vendorContact"
+          type="text"
+          placeholder="Phone or email"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Estimated Cost</label>
+        <input
+          name="estimatedCost"
+          type="text"
+          placeholder="$0.00"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Description</label>
+        <textarea
+          name="description"
+          rows="4"
+          placeholder="Work order details, scope of work, requirements"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        ></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Attachment Links</label>
+        <input
+          name="attachments"
+          type="text"
+          placeholder="Photos, quotes, or documentation URLs"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+    </form>
+
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+      <p class="text-[11px] text-slate-500">WO# will be auto-generated</p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          data-close-drawer
+          class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          form="workOrderForm"
+          class="rounded-lg px-4 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700"
+        >
+          Create Work Order
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========== VIOLATION DRAWER ========== -->
+  <aside
+    id="violationDrawer"
+    class="drawer-enter fixed inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-slate-200 z-40 transition-all duration-200 flex flex-col"
+  >
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold text-rose-600 uppercase tracking-wide">
+          New Violation
+        </p>
+        <h2 class="text-sm font-semibold text-slate-900">Create Violation Notice</h2>
+      </div>
+      <button
+        type="button"
+        data-close-drawer
+        class="rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form id="violationForm" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-sm">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Violation Title *</label>
+        <input
+          name="title"
+          type="text"
+          required
+          placeholder="Brief description of the violation"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Association *</label>
+          <input
+            name="association"
+            type="text"
+            required
+            placeholder="Select association"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Unit / Address</label>
+          <input
+            name="unit"
+            type="text"
+            placeholder="Unit # or address"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Rule / Covenant Broken *</label>
+        <input
+          name="ruleBroken"
+          type="text"
+          required
+          placeholder="Specific CC&R, rule, or policy violated"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Violation Severity</label>
+        <select
+          name="severity"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        >
+          <option value="Minor">Minor</option>
+          <option value="Moderate" selected>Moderate</option>
+          <option value="Serious">Serious</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Notice Step</label>
+          <select
+            name="noticeStep"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="1st Notice" selected>1st Notice (Courtesy)</option>
+            <option value="2nd Notice">2nd Notice (Warning)</option>
+            <option value="3rd Notice">3rd Notice (Final)</option>
+            <option value="Hearing">Hearing Required</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            name="status"
+            class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          >
+            <option value="Open" selected>Open</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Escalated">Escalated</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Resident Name</label>
+        <input
+          name="residentName"
+          type="text"
+          placeholder="Name of the resident"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Violation Details</label>
+        <textarea
+          name="description"
+          rows="4"
+          placeholder="Detailed description of the violation, when it occurred, evidence, etc."
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        ></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Photo Evidence</label>
+        <input
+          name="attachments"
+          type="text"
+          placeholder="Photo URLs (comma separated)"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Deadline to Cure (Optional)</label>
+        <input
+          name="deadline"
+          type="date"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+    </form>
+
+    <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+      <p class="text-[11px] text-slate-500">Violation # will be auto-generated</p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          data-close-drawer
+          class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          form="violationForm"
+          class="rounded-lg px-4 py-1.5 text-xs font-medium text-white bg-rose-600 hover:bg-rose-700"
+        >
+          Create Violation
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Firebase SDKs + Config + App -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
