@@ -1,349 +1,402 @@
 // ============================================
-// LJ SERVICES CRM v8.0 - COMPLETE & FIXED
-// All null checks and correct IDs
+// LJ SERVICES CRM v8.0 - Minimal Working JS
+// Rebuilt so everything works on GitHub Pages
 // ============================================
 
-console.log('🚀 LJ Services CRM v8.0 COMPLETE - Initializing...');
+console.log('🚀 LJ Services CRM v8.0 - JS starting');
 
-// Safe element getter
+// ------------------------
+// Safe element helper
+// ------------------------
 function getEl(id) {
   const el = document.getElementById(id);
-  if (!el) console.warn(`⚠️ Element not found: ${id}`);
+  if (!el) {
+    console.warn('⚠️ Element not found:', id);
+  }
   return el;
 }
 
-// Global State (simplified for v8)
-const CRM = {
-  items: [],
-  filteredItems: [],
-  currentView: 'list',
-  darkMode: localStorage.getItem('theme') === 'dark',
-  notifications: [],
-  selectedItems: new Set()
-};
+// ------------------------
+// Toast notifications
+// ------------------------
+function showToast(message, duration) {
+  if (duration === undefined) duration = 3000;
 
-// ============================================
-// LOADING ANIMATION - FIXED
-// ============================================
-function initLoadingAnimation() {
-  const loadingScreen = getEl('loadingScreen');
-  const mainApp = getEl('mainApp');
-  
-  if (!loadingScreen || !mainApp) {
-    console.warn('⚠️ Loading elements not found - showing app directly');
-    if (mainApp) {
-      mainApp.style.display = 'flex';
-      mainApp.style.opacity = '1';
-    }
-    setTimeout(initializeApp, 100);
-    return;
-  }
-  
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    setTimeout(() => {
-      loadingScreen.style.display = 'none';
-      mainApp.style.display = 'flex';
-      setTimeout(() => {
-        mainApp.style.opacity = '1';
-        mainApp.style.transition = 'opacity 0.5s ease';
-        initializeApp();
-      }, 50);
-    }, 500);
-  }, 2500);
-}
-
-// ============================================
-// DARK MODE - FIXED
-// ============================================
-function initDarkMode() {
-  const btn = getEl('darkModeToggle');
-  
-  // Apply saved theme
-  if (CRM.darkMode) {
-    document.documentElement.classList.add('dark');
-    document.body.classList.add('dark');
-  }
-  
-  if (!btn) return;
-  
-  btn.addEventListener('click', () => {
-    CRM.darkMode = !CRM.darkMode;
-    document.documentElement.classList.toggle('dark');
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', CRM.darkMode ? 'dark' : 'light');
-    showToast(CRM.darkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled');
-  });
-}
-
-// ============================================
-// TOAST NOTIFICATIONS
-// ============================================
-function showToast(message, duration = 3000) {
   const container = getEl('toastContainer') || document.body;
 
   const toast = document.createElement('div');
   toast.className =
-    'fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50';
-
+    'fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50 text-sm';
   toast.style.animation = 'slideInRight 0.3s ease';
   toast.textContent = message;
 
   container.appendChild(toast);
 
-  setTimeout(() => {
+  setTimeout(function () {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(100%)';
     toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
+    setTimeout(function () {
+      if (toast && toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
   }, duration);
 }
 
+// ------------------------
+// Loading screen
+// ------------------------
+function initLoadingAnimation() {
+  var loadingScreen = getEl('loadingScreen');
+  var mainApp = getEl('mainApp');
 
-// ============================================
-// NOTIFICATIONS - FIXED
-// ============================================
-function initNotifications() {
-  const btn = getEl('notificationsBtn');
-  if (!btn) return;
-  
-  btn.addEventListener('click', () => {
-    showToast('📬 Notifications panel');
-  });
-}
-
-// ============================================
-// AI ASSISTANT - FIXED
-// ============================================
-function initAI() {
-  const btn = getEl('aiAssistantBtn');
-  if (!btn) return;
-  
-  btn.addEventListener('click', () => {
-    showToast('🤖 AI Assistant coming soon!');
-  });
-}
-
-// ============================================
-// VIEW SWITCHING - FIXED
-// ============================================
-function initViewToggle() {
-  const listBtn = getEl('listViewBtn');
-  const kanbanBtn = getEl('kanbanViewBtn');
-  const calendarBtn = getEl('calendarViewBtn');
-  
-  if (listBtn) {
-    listBtn.addEventListener('click', () => {
-      switchView('list');
-      updateActiveButton(listBtn, [kanbanBtn, calendarBtn]);
-    });
+  if (!loadingScreen && mainApp) {
+    // No loading screen in DOM -> just show app
+    mainApp.style.display = 'flex';
+    mainApp.style.opacity = '1';
+    initializeApp();
+    return;
   }
-  
-  if (kanbanBtn) {
-    kanbanBtn.addEventListener('click', () => {
-      switchView('kanban');
-      updateActiveButton(kanbanBtn, [listBtn, calendarBtn]);
-    });
-  }
-  
-  if (calendarBtn) {
-    calendarBtn.addEventListener('click', () => {
-      switchView('calendar');
-      updateActiveButton(calendarBtn, [listBtn, kanbanBtn]);
-    });
-  }
-}
 
-function switchView(view) {
-  const views = ['listView', 'kanbanView', 'calendarView'];
-  
-  views.forEach(v => {
-    const el = getEl(v);
-    if (el) {
-      el.style.display = v === view + 'View' ? 'block' : 'none';
+  if (!loadingScreen || !mainApp) {
+    console.warn('⚠️ Loading elements missing, skipping animation');
+    if (mainApp) {
+      mainApp.style.display = 'flex';
+      mainApp.style.opacity = '1';
     }
-  });
-  
-  CRM.currentView = view;
-  console.log(`📄 Switched to ${view} view`);
-}
-
-function updateActiveButton(activeBtn, otherBtns) {
-  if (activeBtn) {
-    activeBtn.classList.add('bg-white', 'dark:bg-slate-700', 'shadow-sm');
+    initializeApp();
+    return;
   }
-  
-  otherBtns.forEach(btn => {
-    if (btn) {
-      btn.classList.remove('bg-white', 'dark:bg-slate-700', 'shadow-sm');
-    }
-  });
-}
 
-// ============================================
-// BULK ACTIONS - FIXED
-// ============================================
-function initBulkActions() {
-  const selectAllBtn = getEl('selectAllBtn');
-  const clearBtn = getEl('clearSelectionBtn');
-  const closeBtn = getEl('closeBulkActionsBtn');
-  
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener('click', () => {
-      showToast('✅ All items selected');
-    });
-  }
-  
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      CRM.selectedItems.clear();
-      showToast('✅ Selection cleared');
-    });
-  }
-  
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
-      const bulkBar = getEl('bulkActionsBar');
-      if (bulkBar) bulkBar.classList.remove('active');
-    });
-  }
-}
-
-// ============================================
-// SEARCH - FIXED
-// ============================================
-function initSearch() {
-  const searchInput = document.querySelector('[type="search"]');
-  if (!searchInput) return;
-  
-  searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    console.log(`🔍 Searching for: ${query}`);
-    // Search logic would go here
-  });
-}
-
-// ============================================
-// EXPORT - FIXED
-// ============================================
-function initExport() {
-  const csvBtn = getEl('exportCsvBtn');
-  const printBtn = getEl('printViewBtn');
-  
-  if (csvBtn) {
-    csvBtn.addEventListener('click', () => {
-      showToast('📊 Exporting to CSV...');
-    });
-  }
-  
-  if (printBtn) {
-    printBtn.addEventListener('click', () => {
-      showToast('🖨️ Print view');
-      window.print();
-    });
-  }
-}
-
-// ============================================
-// REPORTS - FIXED
-// ============================================
-function initReports() {
-  const reportsBtn = getEl('reportsBtn');
-  if (!reportsBtn) return;
-  
-  reportsBtn.addEventListener('click', () => {
-    showToast('📈 Reports panel');
-  });
-}
-
-// ============================================
-// TEMPLATES - FIXED
-// ============================================
-function initTemplates() {
-  const templatesBtn = getEl('templatesBtn');
-  if (!templatesBtn) return;
-  
-  templatesBtn.addEventListener('click', () => {
-    showToast('📋 Templates panel');
-  });
-}
-
-// ============================================
-// AUTOMATION - FIXED
-// ============================================
-function initAutomation() {
-  const automationBtn = getEl('automationBtn');
-  if (!automationBtn) return;
-  
-  automationBtn.addEventListener('click', () => {
-    showToast('⚡ Automation panel');
-  });
-}
-
-// ============================================
-// KEYBOARD SHORTCUTS
-// ============================================
-function initKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Ctrl+K for search
-    if (e.ctrlKey && e.key === 'k') {
-      e.preventDefault();
-      const searchInput = document.querySelector('[type="search"]');
-      if (searchInput) searchInput.focus();
-    }
-    
-    // Ctrl+D for dark mode
-    if (e.ctrlKey && e.key === 'd') {
-      e.preventDefault();
-      const darkBtn = getEl('darkModeToggle');
-      if (darkBtn) darkBtn.click();
-    }
-    
-    // Escape to close modals
-    if (e.key === 'Escape') {
-      // Close any open modals
-      document.querySelectorAll('.modal.active').forEach(modal => {
-        modal.classList.remove('active');
+  // Small delay just to show the animation
+  setTimeout(function () {
+    loadingScreen.style.opacity = '0';
+    setTimeout(function () {
+      loadingScreen.style.display = 'none';
+      mainApp.style.display = 'flex';
+      mainApp.style.opacity = '0';
+      mainApp.style.transition = 'opacity 0.4s ease';
+      requestAnimationFrame(function () {
+        mainApp.style.opacity = '1';
       });
-    }
+      initializeApp();
+    }, 500);
+  }, 1200);
+}
+
+// ------------------------
+// Dark mode
+// ------------------------
+function initDarkMode() {
+  var toggle = getEl('darkModeToggle');
+  var root = document.documentElement;
+
+  if (!toggle) return;
+
+  // Apply saved theme
+  var saved = localStorage.getItem('theme');
+  if (saved === 'dark') {
+    root.classList.add('dark');
+  }
+
+  toggle.addEventListener('click', function () {
+    var isDark = root.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode disabled');
   });
 }
 
-// ============================================
-// MAIN INITIALIZATION
-// ============================================
+// ------------------------
+// Dashboard switching (left sidebar)
+// ------------------------
+function initDashboards() {
+  var buttons = document.querySelectorAll('[data-dashboard]');
+  var views = document.querySelectorAll('[data-dashboard-view]');
+
+  if (!buttons.length || !views.length) return;
+
+  function setActive(target) {
+    views.forEach(function (view) {
+      var name = view.getAttribute('data-dashboard-view');
+      if (name === target) {
+        view.classList.remove('hidden');
+      } else {
+        view.classList.add('hidden');
+      }
+    });
+
+    buttons.forEach(function (btn) {
+      var name = btn.getAttribute('data-dashboard');
+      // remove active style
+      btn.classList.remove(
+        'bg-slate-900',
+        'text-white',
+        'dark:bg-white',
+        'dark:text-slate-900'
+      );
+      // add active style
+      if (name === target) {
+        btn.classList.add(
+          'bg-slate-900',
+          'text-white',
+          'dark:bg-white',
+          'dark:text-slate-900'
+        );
+      }
+    });
+  }
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = btn.getAttribute('data-dashboard') || 'main';
+      setActive(target);
+    });
+  });
+
+  // Default to "main"
+  setActive('main');
+}
+
+// ------------------------
+// View buttons (List / Kanban / Calendar)
+// ------------------------
+function initViewButtons() {
+  var listBtn = getEl('listViewBtn');
+  var kanbanBtn = getEl('kanbanViewBtn');
+  var calendarBtn = getEl('calendarViewBtn');
+
+  function setActive(active) {
+    [listBtn, kanbanBtn, calendarBtn].forEach(function (btn) {
+      if (!btn) return;
+      btn.classList.remove(
+        'bg-slate-900',
+        'text-white',
+        'dark:bg-white',
+        'dark:text-slate-900'
+      );
+    });
+    if (active && active.classList) {
+      active.classList.add(
+        'bg-slate-900',
+        'text-white',
+        'dark:bg-white',
+        'dark:text-slate-900'
+      );
+    }
+  }
+
+  if (listBtn) {
+    listBtn.addEventListener('click', function () {
+      setActive(listBtn);
+      showToast('📋 List view (visual only - demo)');
+    });
+  }
+  if (kanbanBtn) {
+    kanbanBtn.addEventListener('click', function () {
+      setActive(kanbanBtn);
+      showToast('🧩 Kanban view (visual only - demo)');
+    });
+  }
+  if (calendarBtn) {
+    calendarBtn.addEventListener('click', function () {
+      setActive(calendarBtn);
+      showToast('📅 Calendar view (visual only - demo)');
+    });
+  }
+
+  // Default
+  setActive(listBtn || kanbanBtn || calendarBtn);
+}
+
+// ------------------------
+// Drawers (New Ticket / Work Order / Violation)
+// ------------------------
+function openDrawer(id) {
+  var drawer = getEl(id);
+  if (!drawer) return;
+  drawer.classList.remove('hidden');
+  drawer.classList.add('drawer-open');
+}
+
+function closeDrawer(id) {
+  var drawer = getEl(id);
+  if (!drawer) return;
+  drawer.classList.remove('drawer-open');
+  drawer.classList.add('hidden');
+}
+
+// Attach open events by data attribute
+function initDrawers() {
+  var triggers = document.querySelectorAll('[data-open-drawer]');
+  if (!triggers.length) return;
+
+  triggers.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var type = btn.getAttribute('data-open-drawer');
+      if (!type) return;
+      var id;
+      if (type === 'ticket') id = 'drawerTicket';
+      if (type === 'workOrder') id = 'drawerWorkOrder';
+      if (type === 'violation') id = 'drawerViolation';
+      if (id) openDrawer(id);
+    });
+  });
+}
+
+// ------------------------
+// Modals
+// ------------------------
+function openModalById(id) {
+  var modal = getEl(id);
+  if (!modal) return;
+  modal.classList.remove('hidden');
+}
+
+function closeModalById(id) {
+  var modal = getEl(id);
+  if (!modal) return;
+  modal.classList.add('hidden');
+}
+
+// Generic item modal (used by onclick="closeModal()")
+function closeModal() {
+  closeModalById('itemModal');
+}
+
+// Specific modals referenced in HTML
+function closeAIAssistant() { closeModalById('aiAssistantModal'); }
+function closeSLAModal() { closeModalById('slaModal'); }
+function closeImportExportModal() { closeModalById('importExportModal'); }
+function closeTemplatesModal() { closeModalById('templatesModal'); }
+function closeReportsModal() { closeModalById('reportsModal'); }
+function closeAutomationModal() { closeModalById('automationModal'); }
+function closeBatchHistoryModal() { closeModalById('batchHistoryModal'); }
+
+// We also auto-wire open buttons if present
+function initModals() {
+  var aiBtn = getEl('aiAssistantBtn');
+  if (aiBtn) {
+    aiBtn.addEventListener('click', function () {
+      openModalById('aiAssistantModal');
+    });
+  }
+
+  var templatesBtn = getEl('templatesBtn');
+  if (templatesBtn) {
+    templatesBtn.addEventListener('click', function () {
+      openModalById('templatesModal');
+    });
+  }
+
+  var reportsBtn = getEl('reportsBtn');
+  if (reportsBtn) {
+    reportsBtn.addEventListener('click', function () {
+      openModalById('reportsModal');
+    });
+  }
+
+  var automationBtn = getEl('automationBtn');
+  if (automationBtn) {
+    automationBtn.addEventListener('click', function () {
+      openModalById('automationModal');
+    });
+  }
+
+  var batchHistoryBtn = getEl('batchHistoryBtn');
+  if (batchHistoryBtn) {
+    batchHistoryBtn.addEventListener('click', function () {
+      openModalById('batchHistoryModal');
+    });
+  }
+
+  // Optional: if you add a button with data-open-import-export
+  var importExportBtn = document.querySelector('[data-open-import-export]');
+  if (importExportBtn) {
+    importExportBtn.addEventListener('click', function () {
+      openModalById('importExportModal');
+    });
+  }
+}
+
+// ------------------------
+// Simple search (logs only)
+// ------------------------
+function initSearch() {
+  var searchInput = document.querySelector('input[type="search"]');
+  if (!searchInput) return;
+
+  searchInput.addEventListener('input', function (e) {
+    var value = (e.target.value || '').toLowerCase();
+    console.log('🔍 Search:', value);
+    // You can later add real filtering here
+  });
+}
+
+// ------------------------
+// Bulk actions bar (visual only)
+// ------------------------
+function initBulkActions() {
+  var selectAllBtn = getEl('selectAllBtn');
+  var clearBtn = getEl('clearSelectionBtn');
+  var closeBulkBtn = getEl('closeBulkActionsBtn');
+  var bulkBar = document.querySelector('.bulk-actions-bar');
+
+  if (!bulkBar) return;
+
+  function openBar() {
+    bulkBar.classList.add('active');
+  }
+  function closeBar() {
+    bulkBar.classList.remove('active');
+  }
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', function () {
+      openBar();
+      showToast('✅ All items selected (demo only)');
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      closeBar();
+      showToast('✨ Selection cleared (demo only)');
+    });
+  }
+  if (closeBulkBtn) {
+    closeBulkBtn.addEventListener('click', function () {
+      closeBar();
+    });
+  }
+}
+
+// ------------------------
+// Initialize app after loading
+// ------------------------
 function initializeApp() {
-  console.log('⚙️ Initializing app features...');
-  
   try {
-    // Initialize all features with null safety
+    console.log('⚙️ Initializing LJ CRM UI...');
     initDarkMode();
-    initNotifications();
-    initAI();
-    initViewToggle();
-    initBulkActions();
+    initDashboards();
+    initViewButtons();
+    initDrawers();
+    initModals();
     initSearch();
-    initExport();
-    initReports();
-    initTemplates();
-    initAutomation();
-    initKeyboardShortcuts();
-    
-    console.log('✅ App initialized successfully!');
-    showToast('🎉 LJ Services CRM v8.0 is ready!', 4000);
-    
-  } catch (error) {
-    console.error('❌ Error initializing app:', error);
+    initBulkActions();
+
+    showToast('✅ CRM dashboard ready');
+  } catch (err) {
+    console.error('❌ Error during initializeApp:', err);
     showToast('⚠️ Some features may not work properly', 5000);
   }
 }
 
-// ============================================
-// START APPLICATION
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('📄 DOM loaded');
+// ------------------------
+// Startup
+// ------------------------
+document.addEventListener('DOMContentLoaded', function () {
+  console.log('📄 DOM loaded (from app.js)');
   initLoadingAnimation();
 });
 
-console.log('📦 App.js loaded successfully');
+console.log('📦 app.js loaded (end of file)');
