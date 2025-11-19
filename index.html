@@ -196,6 +196,45 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ============================================ -->
+  <!-- LOADING SCREEN -->
+  <!-- ============================================ -->
+  <div id="loadingScreen" style="position: fixed; inset: 0; z-index: 99999; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease;">
+    <div style="text-align: center;">
+      <div style="display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 30px;">
+        <div style="position: relative; opacity: 0; transform: translateY(50px); animation: slideUp 0.8s ease 0.2s forwards;">
+          <svg width="120" height="160" viewBox="0 0 100 140" style="overflow: visible;">
+            <path style="fill: none; stroke: white; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawLine 1s ease 0.2s forwards;" d="M 20 20 L 20 120 L 80 120"/>
+          </svg>
+        </div>
+        <div style="position: relative; opacity: 0; transform: translateY(50px); animation: slideUp 0.8s ease 0.4s forwards;">
+          <svg width="120" height="160" viewBox="0 0 100 140" style="overflow: visible;">
+            <path style="fill: none; stroke: white; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawLine 1s ease 0.4s forwards;" d="M 50 40 L 50 100 Q 50 120 30 120 Q 10 120 10 100"/>
+          </svg>
+          <div style="position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 10px; left: 50%; transform: translateX(-50%); opacity: 0; animation: fadeIn 0.3s ease 0.6s forwards, bounce 0.6s ease 0.9s infinite;"></div>
+        </div>
+      </div>
+      <div style="font-size: 28px; font-weight: 700; letter-spacing: 4px; color: white; opacity: 0; animation: fadeIn 0.5s ease 1.2s forwards;">LJ SERVICES GROUP</div>
+      <div style="font-size: 16px; font-weight: 400; letter-spacing: 2px; color: rgba(255, 255, 255, 0.9); margin-top: 10px; opacity: 0; animation: fadeIn 0.5s ease 1.5s forwards;">Professional Property Management CRM</div>
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #ffd700; margin-top: 10px; opacity: 0; animation: fadeIn 0.5s ease 1.7s forwards;">⚡ v8.0 ULTIMATE EDITION ⚡</div>
+    </div>
+  </div>
+  
+  <style>
+    @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+    @keyframes drawLine { to { stroke-dashoffset: 0; } }
+    @keyframes fadeIn { to { opacity: 1; } }
+    @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-15px); } }
+  </style>
+
+  <!-- ============================================ -->
+  <!-- MAIN APP -->
+  <!-- ============================================ -->
+  <div id="mainApp" style="display: none; opacity: 0;" class="min-h-screen flex flex-col">
+
 
   <!-- Top Bar -->
   <header class="w-full bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-700">
@@ -256,7 +295,7 @@
 
         <div class="hidden sm:flex flex-col items-end">
           <span id="userName" class="text-sm font-medium text-slate-900 dark:text-white">Kevin R</span>
-          <span id="userEmail" class="text-xs text-slate-500 dark:text-slate-400">kevinr@ljservicesgroup.com</span>
+          <span id="userEmail" class="text-xs text-slate-500 dark:text-slate-400"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="670c02110e0915270b0d140215110e04021400150812174904080a">[email&#160;protected]</a></span>
         </div>
         <button id="logoutBtn" class="inline-flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
           Logout
@@ -2245,9 +2284,10 @@
   </div>
 
   <!-- Firebase + App -->
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"></script>
+
+  </div>
+  <!-- End mainApp -->
+
   <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
