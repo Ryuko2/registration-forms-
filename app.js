@@ -1,402 +1,509 @@
 // ============================================
-// LJ SERVICES CRM v8.0 - Minimal Working JS
-// Rebuilt so everything works on GitHub Pages
+// LJ SERVICES CRM v8.0 - COMPLETE & WIRED
+// For index-FINAL-v8.html structure
 // ============================================
 
-console.log('🚀 LJ Services CRM v8.0 - JS starting');
+console.log("🚀 LJ Services CRM v8.0 COMPLETE - Initializing...");
 
 // ------------------------
-// Safe element helper
+// Helper
 // ------------------------
 function getEl(id) {
   const el = document.getElementById(id);
-  if (!el) {
-    console.warn('⚠️ Element not found:', id);
-  }
+  if (!el) console.warn("⚠️ Element not found:", id);
   return el;
 }
 
-// ------------------------
-// Toast notifications
-// ------------------------
-function showToast(message, duration) {
-  if (duration === undefined) duration = 3000;
+// Global state (simple)
+const CRM = {
+  currentView: "list",
+  darkMode: localStorage.getItem("theme") === "dark",
+  selectedItems: new Set(),
+};
 
-  const container = getEl('toastContainer') || document.body;
+// ============================================
+// LOADING ANIMATION
+// ============================================
+function initLoadingAnimation() {
+  const loadingScreen = getEl("loadingScreen");
+  const mainApp = getEl("mainApp");
 
-  const toast = document.createElement('div');
+  if (!loadingScreen || !mainApp) {
+    console.warn("⚠️ Loading elements not found - showing app directly");
+    if (mainApp) {
+      mainApp.style.display = "flex";
+      mainApp.style.opacity = "1";
+    }
+    setTimeout(initializeApp, 100);
+    return;
+  }
+
+  // Fade out loading, fade in app
+  setTimeout(() => {
+    loadingScreen.style.opacity = "0";
+    setTimeout(() => {
+      loadingScreen.style.display = "none";
+      mainApp.style.display = "flex";
+      mainApp.style.opacity = "0";
+      mainApp.style.transition = "opacity 0.5s ease";
+      requestAnimationFrame(() => {
+        mainApp.style.opacity = "1";
+      });
+      initializeApp();
+    }, 500);
+  }, 1500); // 1.5s – you can adjust
+}
+
+// ============================================
+// TOAST NOTIFICATIONS
+// ============================================
+function showToast(message, duration = 3000) {
+  const container = getEl("toastContainer") || document.body;
+
+  const toast = document.createElement("div");
   toast.className =
-    'fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50 text-sm';
-  toast.style.animation = 'slideInRight 0.3s ease';
+    "fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50 text-xs";
+  toast.style.animation = "slideInRight 0.3s ease";
   toast.textContent = message;
 
   container.appendChild(toast);
 
-  setTimeout(function () {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(100%)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(function () {
-      if (toast && toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(100%)";
+    toast.style.transition = "all 0.3s ease";
+    setTimeout(() => {
+      if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
     }, 300);
   }, duration);
 }
 
-// ------------------------
-// Loading screen
-// ------------------------
-function initLoadingAnimation() {
-  var loadingScreen = getEl('loadingScreen');
-  var mainApp = getEl('mainApp');
-
-  if (!loadingScreen && mainApp) {
-    // No loading screen in DOM -> just show app
-    mainApp.style.display = 'flex';
-    mainApp.style.opacity = '1';
-    initializeApp();
-    return;
-  }
-
-  if (!loadingScreen || !mainApp) {
-    console.warn('⚠️ Loading elements missing, skipping animation');
-    if (mainApp) {
-      mainApp.style.display = 'flex';
-      mainApp.style.opacity = '1';
-    }
-    initializeApp();
-    return;
-  }
-
-  // Small delay just to show the animation
-  setTimeout(function () {
-    loadingScreen.style.opacity = '0';
-    setTimeout(function () {
-      loadingScreen.style.display = 'none';
-      mainApp.style.display = 'flex';
-      mainApp.style.opacity = '0';
-      mainApp.style.transition = 'opacity 0.4s ease';
-      requestAnimationFrame(function () {
-        mainApp.style.opacity = '1';
-      });
-      initializeApp();
-    }, 500);
-  }, 1200);
-}
-
-// ------------------------
-// Dark mode
-// ------------------------
+// ============================================
+// DARK MODE
+// ============================================
 function initDarkMode() {
-  var toggle = getEl('darkModeToggle');
-  var root = document.documentElement;
-
-  if (!toggle) return;
+  const btn = getEl("darkModeToggle");
 
   // Apply saved theme
-  var saved = localStorage.getItem('theme');
-  if (saved === 'dark') {
-    root.classList.add('dark');
+  if (CRM.darkMode) {
+    document.documentElement.classList.add("dark");
+    document.body.classList.add("dark");
   }
 
-  toggle.addEventListener('click', function () {
-    var isDark = root.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    showToast(isDark ? '🌙 Dark mode enabled' : '☀️ Light mode disabled');
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    CRM.darkMode = !CRM.darkMode;
+    document.documentElement.classList.toggle("dark");
+    document.body.classList.toggle("dark");
+    localStorage.setItem("theme", CRM.darkMode ? "dark" : "light");
+    showToast(
+      CRM.darkMode ? "🌙 Dark mode enabled" : "☀️ Light mode enabled"
+    );
   });
 }
 
-// ------------------------
-// Dashboard switching (left sidebar)
-// ------------------------
-function initDashboards() {
-  var buttons = document.querySelectorAll('[data-dashboard]');
-  var views = document.querySelectorAll('[data-dashboard-view]');
+// ============================================
+// NOTIFICATIONS
+// ============================================
+function initNotifications() {
+  const btn = getEl("notificationsBtn");
+  if (!btn) return;
 
-  if (!buttons.length || !views.length) return;
-
-  function setActive(target) {
-    views.forEach(function (view) {
-      var name = view.getAttribute('data-dashboard-view');
-      if (name === target) {
-        view.classList.remove('hidden');
-      } else {
-        view.classList.add('hidden');
-      }
-    });
-
-    buttons.forEach(function (btn) {
-      var name = btn.getAttribute('data-dashboard');
-      // remove active style
-      btn.classList.remove(
-        'bg-slate-900',
-        'text-white',
-        'dark:bg-white',
-        'dark:text-slate-900'
-      );
-      // add active style
-      if (name === target) {
-        btn.classList.add(
-          'bg-slate-900',
-          'text-white',
-          'dark:bg-white',
-          'dark:text-slate-900'
-        );
-      }
-    });
-  }
-
-  buttons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var target = btn.getAttribute('data-dashboard') || 'main';
-      setActive(target);
-    });
+  btn.addEventListener("click", () => {
+    showToast("📬 Notifications panel");
   });
-
-  // Default to "main"
-  setActive('main');
 }
 
-// ------------------------
-// View buttons (List / Kanban / Calendar)
-// ------------------------
-function initViewButtons() {
-  var listBtn = getEl('listViewBtn');
-  var kanbanBtn = getEl('kanbanViewBtn');
-  var calendarBtn = getEl('calendarViewBtn');
+// ============================================
+// AI ASSISTANT
+// ============================================
+function initAI() {
+  const btn = getEl("aiAssistantBtn");
+  const modal = getEl("aiAssistantModal");
+  if (!btn || !modal) return;
 
-  function setActive(active) {
-    [listBtn, kanbanBtn, calendarBtn].forEach(function (btn) {
-      if (!btn) return;
-      btn.classList.remove(
-        'bg-slate-900',
-        'text-white',
-        'dark:bg-white',
-        'dark:text-slate-900'
-      );
-    });
-    if (active && active.classList) {
-      active.classList.add(
-        'bg-slate-900',
-        'text-white',
-        'dark:bg-white',
-        'dark:text-slate-900'
-      );
+  btn.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  });
+}
+
+// ============================================
+// VIEW TOGGLE (List / Kanban / Calendar)
+// ============================================
+function initViewToggle() {
+  const listBtn = getEl("listViewBtn");
+  const kanbanBtn = getEl("kanbanViewBtn");
+  const calendarBtn = getEl("calendarViewBtn");
+
+  function switchView(view) {
+    const kanban = getEl("kanbanView");
+    const calendar = getEl("calendarView");
+    const mainListContainer = getEl("listViewContainer"); // OPTIONAL ID; safe if missing
+
+    // Default behavior: list view = main table visible, kanban/calendar hidden
+    if (kanban) {
+      kanban.classList.toggle("hidden", view !== "kanban");
     }
+    if (calendar) {
+      calendar.classList.toggle("hidden", view !== "calendar");
+    }
+    if (mainListContainer) {
+      mainListContainer.classList.toggle("hidden", view !== "list");
+    }
+
+    CRM.currentView = view;
+    console.log(`📄 Switched to ${view} view`);
+  }
+
+  function updateActiveButton(activeBtn, otherBtns) {
+    const cls = ["bg-white", "dark:bg-slate-700", "shadow-sm"];
+    [activeBtn, ...otherBtns].forEach((btn) => {
+      if (!btn) return;
+      cls.forEach((c) => btn.classList.remove(c));
+    });
+    if (activeBtn) cls.forEach((c) => activeBtn.classList.add(c));
   }
 
   if (listBtn) {
-    listBtn.addEventListener('click', function () {
-      setActive(listBtn);
-      showToast('📋 List view (visual only - demo)');
+    listBtn.addEventListener("click", () => {
+      switchView("list");
+      updateActiveButton(listBtn, [kanbanBtn, calendarBtn]);
     });
   }
   if (kanbanBtn) {
-    kanbanBtn.addEventListener('click', function () {
-      setActive(kanbanBtn);
-      showToast('🧩 Kanban view (visual only - demo)');
+    kanbanBtn.addEventListener("click", () => {
+      switchView("kanban");
+      updateActiveButton(kanbanBtn, [listBtn, calendarBtn]);
     });
   }
   if (calendarBtn) {
-    calendarBtn.addEventListener('click', function () {
-      setActive(calendarBtn);
-      showToast('📅 Calendar view (visual only - demo)');
+    calendarBtn.addEventListener("click", () => {
+      switchView("calendar");
+      updateActiveButton(calendarBtn, [listBtn, kanbanBtn]);
     });
   }
 
   // Default
-  setActive(listBtn || kanbanBtn || calendarBtn);
+  switchView("list");
+  updateActiveButton(listBtn || kanbanBtn || calendarBtn, []);
 }
 
-// ------------------------
-// Drawers (New Ticket / Work Order / Violation)
-// ------------------------
+// ============================================
+// BULK ACTIONS BAR
+// ============================================
+function initBulkActions() {
+  const selectAllBtn = getEl("selectAllBtn");
+  const clearBtn = getEl("clearSelectionBtn");
+  const closeBtn = getEl("closeBulkActionsBtn");
+  const bulkBar = getEl("bulkActionsBar");
+
+  if (!bulkBar) return;
+
+  function openBar() {
+    bulkBar.classList.add("active");
+  }
+  function closeBar() {
+    bulkBar.classList.remove("active");
+  }
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", () => {
+      openBar();
+      showToast("✅ All items selected (demo)");
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      CRM.selectedItems.clear();
+      closeBar();
+      showToast("✨ Selection cleared");
+    });
+  }
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeBar();
+    });
+  }
+}
+
+// ============================================
+// SEARCH
+// ============================================
+function initSearch() {
+  const searchInput = document.querySelector('input[type="search"]');
+  if (!searchInput) return;
+
+  searchInput.addEventListener("input", (e) => {
+    const q = (e.target.value || "").toLowerCase();
+    console.log("🔍 Searching for:", q);
+    // later: filter ticket list
+  });
+}
+
+// ============================================
+// EXPORT / PRINT
+// ============================================
+function initExport() {
+  const csvBtn = getEl("exportCsvBtn");
+  const printBtn = getEl("printViewBtn");
+
+  if (csvBtn) {
+    csvBtn.addEventListener("click", () => {
+      showToast("📊 Exporting to CSV (demo)");
+    });
+  }
+
+  if (printBtn) {
+    printBtn.addEventListener("click", () => {
+      showToast("🖨️ Opening print dialog...");
+      window.print();
+    });
+  }
+}
+
+// ============================================
+// REPORTS / TEMPLATES / AUTOMATION / BATCH
+// ============================================
+function initReports() {
+  const btn = getEl("reportsBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const modal = getEl("reportsModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    showToast("📈 Reports panel");
+  });
+}
+
+function initTemplates() {
+  const btn = getEl("templatesBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const modal = getEl("templatesModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    showToast("📄 Templates panel");
+  });
+}
+
+function initAutomation() {
+  const btn = getEl("automationBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const modal = getEl("automationModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    showToast("⚡ Automation panel");
+  });
+}
+
+function initBatchHistory() {
+  const btn = getEl("batchHistoryBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const modal = getEl("batchHistoryModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+    showToast("📚 Bulk actions history");
+  });
+}
+
+// ============================================
+// DRAWERS (Tickets / Work Orders / Violations)
+// ============================================
 function openDrawer(id) {
-  var drawer = getEl(id);
+  const drawer = getEl(id);
   if (!drawer) return;
-  drawer.classList.remove('hidden');
-  drawer.classList.add('drawer-open');
+  drawer.style.display = "block";
 }
 
 function closeDrawer(id) {
-  var drawer = getEl(id);
+  const drawer = getEl(id);
   if (!drawer) return;
-  drawer.classList.remove('drawer-open');
-  drawer.classList.add('hidden');
+  drawer.style.display = "none";
 }
 
-// Attach open events by data attribute
 function initDrawers() {
-  var triggers = document.querySelectorAll('[data-open-drawer]');
+  const triggers = document.querySelectorAll("[data-open-drawer]");
   if (!triggers.length) return;
 
-  triggers.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var type = btn.getAttribute('data-open-drawer');
-      if (!type) return;
-      var id;
-      if (type === 'ticket') id = 'drawerTicket';
-      if (type === 'workOrder') id = 'drawerWorkOrder';
-      if (type === 'violation') id = 'drawerViolation';
+  triggers.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const type = btn.getAttribute("data-open-drawer");
+      let id = null;
+      if (type === "ticket") id = "drawerTicket";
+      if (type === "workOrder") id = "drawerWorkOrder";
+      if (type === "violation") id = "drawerViolation";
       if (id) openDrawer(id);
     });
   });
 }
 
-// ------------------------
-// Modals
-// ------------------------
-function openModalById(id) {
-  var modal = getEl(id);
-  if (!modal) return;
-  modal.classList.remove('hidden');
-}
+// Expose for inline HTML onclick
+window.openDrawer = openDrawer;
+window.closeDrawer = closeDrawer;
 
-function closeModalById(id) {
-  var modal = getEl(id);
-  if (!modal) return;
-  modal.classList.add('hidden');
-}
-
-// Generic item modal (used by onclick="closeModal()")
+// ============================================
+// MODAL CLOSE HELPERS (for inline onclick="...")
+// ============================================
 function closeModal() {
-  closeModalById('itemModal');
+  const modal = getEl("itemModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
 }
 
-// Specific modals referenced in HTML
-function closeAIAssistant() { closeModalById('aiAssistantModal'); }
-function closeSLAModal() { closeModalById('slaModal'); }
-function closeImportExportModal() { closeModalById('importExportModal'); }
-function closeTemplatesModal() { closeModalById('templatesModal'); }
-function closeReportsModal() { closeModalById('reportsModal'); }
-function closeAutomationModal() { closeModalById('automationModal'); }
-function closeBatchHistoryModal() { closeModalById('batchHistoryModal'); }
-
-// We also auto-wire open buttons if present
-function initModals() {
-  var aiBtn = getEl('aiAssistantBtn');
-  if (aiBtn) {
-    aiBtn.addEventListener('click', function () {
-      openModalById('aiAssistantModal');
-    });
-  }
-
-  var templatesBtn = getEl('templatesBtn');
-  if (templatesBtn) {
-    templatesBtn.addEventListener('click', function () {
-      openModalById('templatesModal');
-    });
-  }
-
-  var reportsBtn = getEl('reportsBtn');
-  if (reportsBtn) {
-    reportsBtn.addEventListener('click', function () {
-      openModalById('reportsModal');
-    });
-  }
-
-  var automationBtn = getEl('automationBtn');
-  if (automationBtn) {
-    automationBtn.addEventListener('click', function () {
-      openModalById('automationModal');
-    });
-  }
-
-  var batchHistoryBtn = getEl('batchHistoryBtn');
-  if (batchHistoryBtn) {
-    batchHistoryBtn.addEventListener('click', function () {
-      openModalById('batchHistoryModal');
-    });
-  }
-
-  // Optional: if you add a button with data-open-import-export
-  var importExportBtn = document.querySelector('[data-open-import-export]');
-  if (importExportBtn) {
-    importExportBtn.addEventListener('click', function () {
-      openModalById('importExportModal');
-    });
-  }
+function closeAIAssistant() {
+  const modal = getEl("aiAssistantModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
 }
 
-// ------------------------
-// Simple search (logs only)
-// ------------------------
-function initSearch() {
-  var searchInput = document.querySelector('input[type="search"]');
-  if (!searchInput) return;
+function closeSLAModal() {
+  const modal = getEl("slaModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
 
-  searchInput.addEventListener('input', function (e) {
-    var value = (e.target.value || '').toLowerCase();
-    console.log('🔍 Search:', value);
-    // You can later add real filtering here
+function closeImportExportModal() {
+  const modal = getEl("importExportModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
+
+function closeTemplatesModal() {
+  const modal = getEl("templatesModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
+
+function closeReportsModal() {
+  const modal = getEl("reportsModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
+
+function closeAutomationModal() {
+  const modal = getEl("automationModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
+
+function closeBatchHistoryModal() {
+  const modal = getEl("batchHistoryModal");
+  if (!modal) return;
+  modal.classList.remove("flex");
+  modal.classList.add("hidden");
+}
+
+// Expose globally for your inline onclick attributes
+window.closeModal = closeModal;
+window.closeAIAssistant = closeAIAssistant;
+window.closeSLAModal = closeSLAModal;
+window.closeImportExportModal = closeImportExportModal;
+window.closeTemplatesModal = closeTemplatesModal;
+window.closeReportsModal = closeReportsModal;
+window.closeAutomationModal = closeAutomationModal;
+window.closeBatchHistoryModal = closeBatchHistoryModal;
+
+// ============================================
+// KEYBOARD SHORTCUTS
+// ============================================
+function initKeyboardShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    // Ctrl+K → focus search
+    if (e.ctrlKey && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      const searchInput = document.querySelector('input[type="search"]');
+      if (searchInput) searchInput.focus();
+    }
+
+    // Ctrl+D → toggle dark mode
+    if (e.ctrlKey && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      const darkBtn = getEl("darkModeToggle");
+      if (darkBtn) darkBtn.click();
+    }
+
+    // Esc → close any visible modals / drawers
+    if (e.key === "Escape") {
+      [
+        "aiAssistantModal",
+        "itemModal",
+        "slaModal",
+        "importExportModal",
+        "templatesModal",
+        "reportsModal",
+        "automationModal",
+        "batchHistoryModal",
+        "drawerTicket",
+        "drawerWorkOrder",
+        "drawerViolation",
+      ].forEach((id) => {
+        const el = getEl(id);
+        if (!el) return;
+        if (id.startsWith("drawer")) {
+          el.style.display = "none";
+        } else {
+          el.classList.add("hidden");
+          el.classList.remove("flex");
+        }
+      });
+    }
   });
 }
 
-// ------------------------
-// Bulk actions bar (visual only)
-// ------------------------
-function initBulkActions() {
-  var selectAllBtn = getEl('selectAllBtn');
-  var clearBtn = getEl('clearSelectionBtn');
-  var closeBulkBtn = getEl('closeBulkActionsBtn');
-  var bulkBar = document.querySelector('.bulk-actions-bar');
-
-  if (!bulkBar) return;
-
-  function openBar() {
-    bulkBar.classList.add('active');
-  }
-  function closeBar() {
-    bulkBar.classList.remove('active');
-  }
-
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener('click', function () {
-      openBar();
-      showToast('✅ All items selected (demo only)');
-    });
-  }
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function () {
-      closeBar();
-      showToast('✨ Selection cleared (demo only)');
-    });
-  }
-  if (closeBulkBtn) {
-    closeBulkBtn.addEventListener('click', function () {
-      closeBar();
-    });
-  }
-}
-
-// ------------------------
-// Initialize app after loading
-// ------------------------
+// ============================================
+// MAIN INITIALIZATION
+// ============================================
 function initializeApp() {
-  try {
-    console.log('⚙️ Initializing LJ CRM UI...');
-    initDarkMode();
-    initDashboards();
-    initViewButtons();
-    initDrawers();
-    initModals();
-    initSearch();
-    initBulkActions();
+  console.log("⚙️ Initializing app features...");
 
-    showToast('✅ CRM dashboard ready');
-  } catch (err) {
-    console.error('❌ Error during initializeApp:', err);
-    showToast('⚠️ Some features may not work properly', 5000);
+  try {
+    initDarkMode();
+    initNotifications();
+    initAI();
+    initViewToggle();
+    initBulkActions();
+    initSearch();
+    initExport();
+    initReports();
+    initTemplates();
+    initAutomation();
+    initBatchHistory();
+    initDrawers();
+    initKeyboardShortcuts();
+
+    console.log("✅ App initialized successfully!");
+    showToast("🎉 LJ Services CRM v8.0 is ready!", 4000);
+  } catch (error) {
+    console.error("❌ Error initializing app:", error);
+    showToast("⚠️ Some features may not work properly", 5000);
   }
 }
 
-// ------------------------
-// Startup
-// ------------------------
-document.addEventListener('DOMContentLoaded', function () {
-  console.log('📄 DOM loaded (from app.js)');
+// ============================================
+// START APPLICATION
+// ============================================
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("📄 DOM loaded");
   initLoadingAnimation();
 });
 
-console.log('📦 app.js loaded (end of file)');
+console.log("📦 App.js loaded successfully");
