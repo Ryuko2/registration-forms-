@@ -22,12 +22,24 @@ const CRM = {
 };
 
 // ============================================
-// LOADING ANIMATION
+// LOADING ANIMATION - FIXED VERSION
 // ============================================
 function initLoadingAnimation() {
   const loadingScreen = document.getElementById('loadingScreen');
   const mainApp = document.getElementById('mainApp');
   
+  // Safety check - if elements don't exist, try to initialize anyway
+  if (!loadingScreen || !mainApp) {
+    console.warn('⚠️ Loading elements not found - initializing app directly');
+    if (mainApp) {
+      mainApp.style.display = 'flex';
+      mainApp.style.opacity = '1';
+    }
+    initializeApp();
+    return;
+  }
+  
+  // Normal loading animation
   setTimeout(() => {
     loadingScreen.style.opacity = '0';
     setTimeout(() => {
