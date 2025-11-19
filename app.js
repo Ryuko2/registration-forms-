@@ -81,14 +81,16 @@ function initDarkMode() {
 // ============================================
 function showToast(message, duration = 3000) {
   const container = getEl('toastContainer') || document.body;
-  
+
   const toast = document.createElement('div');
-  toast.className = 'fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50';
+  toast.className =
+    'fixed bottom-6 right-6 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-lg shadow-2xl z-50';
+
   toast.style.animation = 'slideInRight 0.3s ease';
   toast.textContent = message;
-  
+
   container.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(100%)';
@@ -96,6 +98,7 @@ function showToast(message, duration = 3000) {
     setTimeout(() => toast.remove(), 300);
   }, duration);
 }
+
 
 // ============================================
 // NOTIFICATIONS - FIXED
