@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Registration Type - LJ Services Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .hover-float:hover {
+            animation: float 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen py-12 px-4">
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b7/32/f7/b732f723-33a3-7d19-2e8c-b6f5d1071b9c/AppIcon-1x_U007emarketing-0-7-85-220-0.png/1200x630wa.png" 
+                 alt="LJ Services Group" 
+                 class="max-w-[180px] h-auto mx-auto rounded-2xl shadow-xl">
+        </div>
+
+        <!-- Header -->
+        <div class="bg-white rounded-3xl shadow-2xl p-8 mb-8 border-t-8 border-blue-500">
+            <h1 class="text-4xl md:text-5xl font-bold text-center bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                Select Registration Type
+            </h1>
+            <p class="text-center text-gray-600 text-lg">
+                Choose the form you need to complete
+            </p>
+        </div>
+
+        <!-- Form Selection Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            
+            <!-- Vehicle Registration -->
+            <a href="CORRECTED_vehicle_form.html" 
+               class="block bg-white rounded-3xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden border-4 border-blue-200 hover:border-blue-400 hover-float">
+                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-8 text-white text-center">
+                    <div class="text-6xl mb-4">🚗</div>
+                    <h2 class="text-3xl font-bold">Vehicle Registration</h2>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-700 mb-4">
+                        Register up to 3 vehicles with insurance & documents
+                    </p>
+                    <ul class="text-sm text-gray-600 space-y-2 mb-6">
+                        <li>✅ Up to 3 vehicles per unit</li>
+                        <li>✅ Upload insurance cards</li>
+                        <li>✅ Upload registration docs</li>
+                        <li>✅ Instant confirmation</li>
+                    </ul>
+                    <div class="bg-blue-100 text-blue-800 font-bold py-3 px-6 rounded-xl text-center">
+                        Start Vehicle Registration →
+                    </div>
+                </div>
+            </a>
+
+            <!-- Boat Registration -->
+            <a href="UPDATED_boat_registration.html" 
+               class="block bg-white rounded-3xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden border-4 border-teal-200 hover:border-teal-400 hover-float">
+                <div class="bg-gradient-to-br from-teal-500 to-cyan-600 p-8 text-white text-center">
+                    <div class="text-6xl mb-4">🚤</div>
+                    <h2 class="text-3xl font-bold">Boat Registration</h2>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-700 mb-4">
+                        Register watercraft with all required documentation
+                    </p>
+                    <ul class="text-sm text-gray-600 space-y-2 mb-6">
+                        <li>✅ PWC, Power, or Non-power craft</li>
+                        <li>✅ Boat insurance documents</li>
+                        <li>✅ Registration documents</li>
+                        <li>✅ Complete boat details</li>
+                    </ul>
+                    <div class="bg-teal-100 text-teal-800 font-bold py-3 px-6 rounded-xl text-center">
+                        Start Boat Registration →
+                    </div>
+                </div>
+            </a>
+
+            <!-- Pet Registration -->
+            <a href="UPDATED_pet_registration.html" 
+               class="block bg-white rounded-3xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden border-4 border-pink-200 hover:border-pink-400 hover-float">
+                <div class="bg-gradient-to-br from-pink-500 to-purple-600 p-8 text-white text-center">
+                    <div class="text-6xl mb-4">🐾</div>
+                    <h2 class="text-3xl font-bold">Pet Registration</h2>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-700 mb-4">
+                        Register pets & service animals with photos
+                    </p>
+                    <ul class="text-sm text-gray-600 space-y-2 mb-6">
+                        <li>✅ General pets (dogs, cats, birds)</li>
+                        <li>✅ Service animals / ESA</li>
+                        <li>✅ Upload pet photos</li>
+                        <li>✅ Digital signature</li>
+                    </ul>
+                    <div class="bg-pink-100 text-pink-800 font-bold py-3 px-6 rounded-xl text-center">
+                        Start Pet Registration →
+                    </div>
+                </div>
+            </a>
+
+        </div>
+
+        <!-- Help Section -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 text-center border-2 border-gray-200">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">Need Help?</h3>
+            <p class="text-gray-600 mb-4">
+                If you have any questions about the registration process, please contact us:
+            </p>
+            <a href="mailto:kevinr@ljservicesgroup.com" 
+               class="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:shadow-lg transition-all">
+                📧 kevinr@ljservicesgroup.com
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600 text-sm">
+            <p>© 2025 LJ Services Group. All rights reserved.</p>
+            <p class="mt-2">Serving 19 Condominium Associations across Miami-Dade & Broward Counties</p>
+        </div>
+
+    </div>
+</body>
+</html>
