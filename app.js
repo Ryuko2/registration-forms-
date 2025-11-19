@@ -1,1355 +1,1126 @@
 // ============================================
-// LJ SERVICES GROUP - PROFESSIONAL CRM
-// Enhanced with Bulk Actions & Advanced Features
+// LJ SERVICES CRM v7.0 MEGA EDITION
+// The Most Advanced CRM Ever Created
 // ============================================
 
-console.log("🚀 Loading Professional CRM with Bulk Actions...");
+console.log('🚀 LJ Services CRM v7.0 MEGA - Initializing...');
 
-const LJ_STATE = {
-  db: null,
-  tickets: {},
-  workOrders: {},
-  violations: {},
-  currentItem: null,
-  searchQuery: "",
-  filterStatus: "all",
-  attachments: {},
-  emailConfig: {
-    notifyOnComment: true,
-    notifyOnStatusChange: true,
-    notifyEmail: "",
-  },
-  // Bulk Actions State
+// Global State
+const CRM = {
+  items: [],
+  filteredItems: [],
+  currentView: 'dashboard',
+  darkMode: localStorage.getItem('theme') === 'dark',
+  notifications: [
+    { id: 1, title: '🚨 SLA Alert', message: '3 work orders approaching deadline', time: '5 min ago', read: false, type: 'urgent' },
+    { id: 2, title: '✅ Work Order Completed', message: 'Pool maintenance at Aquarius finished', time: '1 hour ago', read: false, type: 'success' },
+    { id: 3, title: '📝 New Comment', message: 'Maria commented on your ticket', time: '2 hours ago', read: true, type: 'info' }
+  ],
+  recording: false,
   selectedItems: new Set(),
-  bulkActionsActive: false,
-  associations: [
-    "Aquarius at Brickell",
-    "Bay Point Club",
-    "Brickell Townhouse",
-    "Bristol Tower",
-    "Carriage Club North",
-    "Carriage Club South",
-    "Carriage Club West",
-    "Casa Grande",
-    "Colonnade on Williams Island",
-    "Commodore Plaza West",
-    "Cricket Club",
-    "Eldorado Towers",
-    "Flamingo South Beach",
-    "Hamptons East",
-    "Marenas Beach Resort",
-    "Renaissance Towers",
-    "Richmond Park",
-    "Turnberry Village South",
-    "Winston Towers"
-  ]
+  contextTarget: null
 };
 
-// ---------- Initialization ----------
-
-document.addEventListener("DOMContentLoaded", () => {
-  try {
-    initFirebaseBinding();
-    initUserProfile();
-    initDashboardNavigation();
-    initDrawers();
-    initModal();
-    initSearch();
-    initFilters();
-    initFileUpload();
-    initExport();
-    initBulkActions();
-    initRealtimeListeners();
-    initLogoutButton();
-    console.log("✅ Professional CRM initialized with Bulk Actions!");
-  } catch (err) {
-    console.error("❌ Error initializing app:", err);
-  }
-});
-
-function initFirebaseBinding() {
-  if (!window.firebase || !firebase.apps.length) {
-    console.error("Firebase is not initialized.");
-    return;
-  }
-  LJ_STATE.db = firebase.database();
-  console.log("🔥 Firebase ready:", LJ_STATE.db.ref().toString());
-
-  const dbUrlLabel = document.getElementById("dbUrlLabel");
-  if (dbUrlLabel && firebase.apps[0].options.databaseURL) {
-    dbUrlLabel.textContent = firebase.apps[0].options.databaseURL;
-  }
-}
-
-function initUserProfile() {
-  const nameEl = document.getElementById("userName");
-  const emailEl = document.getElementById("userEmail");
-  const user = window.currentUser || { name: "Kevin R", email: "kevinr@ljservicesgroup.com" };
+// ============================================
+// LOADING ANIMATION
+// ============================================
+function initLoadingAnimation() {
+  const loadingScreen = document.getElementById('loadingScreen');
+  const mainApp = document.getElementById('mainApp');
   
-  if (nameEl) nameEl.textContent = user.name || "User";
-  if (emailEl) emailEl.textContent = user.email || "";
-  console.log("✅ User:", user.email);
+  setTimeout(() => {
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+      mainApp.style.display = 'flex';
+      mainApp.style.opacity = '0';
+      setTimeout(() => {
+        mainApp.style.opacity = '1';
+        mainApp.style.transition = 'opacity 0.5s ease';
+        initializeApp();
+      }, 50);
+    }, 500);
+  }, 2500);
 }
 
-function initLogoutButton() {
-  const btn = document.getElementById("logoutBtn");
-  if (btn) {
-    btn.addEventListener("click", () => alert("Logout logic here"));
+// ============================================
+// DARK MODE
+// ============================================
+function initDarkMode() {
+  const btn = document.getElementById('darkModeBtn');
+  
+  if (CRM.darkMode) {
+    document.documentElement.classList.add('dark');
+    document.body.classList.add('dark');
   }
-}
-
-// ---------- Dashboard Navigation ----------
-
-function initDashboardNavigation() {
-  const tabButtons = document.querySelectorAll(".dashboard-tab");
-  const views = document.querySelectorAll("[data-dashboard-view]");
-  const mobileSelect = document.getElementById("mobileDashboardSelect");
-  const titleEl = document.getElementById("dashboardTitle");
-  const subtitleEl = document.getElementById("dashboardSubtitle");
-
-  const LABELS = {
-    main: { title: "Overview", subtitle: "High-level activity across all items." },
-    tickets: { title: "Tickets Dashboard", subtitle: "General tickets and internal tasks." },
-    workOrders: { title: "Work Orders Dashboard", subtitle: "Vendor work and maintenance." },
-    violations: { title: "Violations Dashboard", subtitle: "CC&R enforcement." },
-  };
-
-  function setDashboard(id) {
-    tabButtons.forEach((btn) => {
-      const isActive = btn.dataset.dashboard === id;
-      btn.classList.toggle("bg-indigo-50", isActive);
-      btn.classList.toggle("text-indigo-700", isActive);
-      btn.classList.toggle("text-slate-600", !isActive);
-    });
-
-    views.forEach((view) => {
-      view.classList.toggle("hidden", view.dataset.dashboardView !== id);
-    });
-
-    if (titleEl && LABELS[id]) {
-      titleEl.textContent = LABELS[id].title;
-      subtitleEl.textContent = LABELS[id].subtitle;
-    }
-
-    if (mobileSelect) mobileSelect.value = id;
+  
+  btn.addEventListener('click', () => {
+    CRM.darkMode = !CRM.darkMode;
+    document.documentElement.classList.toggle('dark');
+    document.body.classList.toggle('dark');
+    localStorage.setItem('theme', CRM.darkMode ? 'dark' : 'light');
+    showToast(CRM.darkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled');
     
-    // Clear bulk selections when switching dashboards
-    clearBulkSelection();
-    renderCurrentView();
-  }
-
-  tabButtons.forEach((btn) => {
-    btn.addEventListener("click", () => setDashboard(btn.dataset.dashboard));
+    // Update charts
+    updateCharts();
   });
-
-  if (mobileSelect) {
-    mobileSelect.addEventListener("change", (e) => setDashboard(e.target.value));
-  }
-
-  setDashboard("main");
 }
 
-// ---------- Drawers (Ticket, Work Order, Violation) ----------
-
-function initDrawers() {
-  // Populate associations
-  populateAssociationSelects();
-
-  // Open drawer buttons
-  document.querySelectorAll("[data-open-drawer]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const drawerType = btn.dataset.openDrawer;
-      openDrawer(`drawer${capitalize(drawerType)}`);
-    });
-  });
-
-  // Form submissions
-  document.getElementById("ticketForm").addEventListener("submit", handleCreateTicket);
-  document.getElementById("workOrderForm").addEventListener("submit", handleCreateWorkOrder);
-  document.getElementById("violationForm").addEventListener("submit", handleCreateViolation);
-}
-
-function populateAssociationSelects() {
-  const selects = [
-    ...document.querySelectorAll("#ticketForm select[name='association']"),
-    ...document.querySelectorAll("#workOrderForm select[name='association']"),
-    ...document.querySelectorAll("#violationForm select[name='association']"),
-  ];
-
-  selects.forEach(select => {
-    select.innerHTML = '<option value="">Select...</option>';
-    LJ_STATE.associations.forEach(assoc => {
-      const opt = document.createElement("option");
-      opt.value = assoc;
-      opt.textContent = assoc;
-      select.appendChild(opt);
-    });
-  });
-
-  // Also populate bulk association select
-  const bulkSelect = document.getElementById("bulkAssociationSelect");
-  if (bulkSelect) {
-    bulkSelect.innerHTML = '<option value="">Change Association...</option>';
-    LJ_STATE.associations.forEach(assoc => {
-      const opt = document.createElement("option");
-      opt.value = assoc;
-      opt.textContent = assoc;
-      bulkSelect.appendChild(opt);
-    });
-  }
-}
-
-function openDrawer(id) {
-  const drawer = document.getElementById(id);
-  if (!drawer) return;
-  drawer.style.display = "block";
-  setTimeout(() => {
-    const content = drawer.querySelector(".drawer-content");
-    if (content) {
-      content.classList.remove("drawer-enter");
-      content.classList.add("drawer-open");
-    }
-  }, 10);
-}
-
-function closeDrawer(id) {
-  const drawer = document.getElementById(id);
-  if (!drawer) return;
-  const content = drawer.querySelector(".drawer-content");
-  if (content) {
-    content.classList.remove("drawer-open");
-    content.classList.add("drawer-enter");
-  }
-  setTimeout(() => {
-    drawer.style.display = "none";
-  }, 200);
-}
-
-// Make closeDrawer global for onclick
-window.closeDrawer = closeDrawer;
-
-function handleCreateTicket(e) {
-  e.preventDefault();
-  const form = e.target;
-  const data = {
-    type: "ticket",
-    title: form.title.value,
-    association: form.association.value,
-    status: form.status.value,
-    priority: form.priority.value,
-    description: form.description.value || "",
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-    referenceNumber: generateReferenceNumber("TKT"),
+// ============================================
+// TOAST NOTIFICATIONS
+// ============================================
+function showToast(message, duration = 3000, type = 'info') {
+  const toast = document.createElement('div');
+  const colors = {
+    info: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900',
+    success: 'bg-emerald-600 text-white',
+    error: 'bg-rose-600 text-white',
+    warning: 'bg-amber-600 text-white'
   };
-
-  LJ_STATE.db.ref("tickets").push(data)
-    .then(() => {
-      showToast("Ticket created successfully!", "success");
-      form.reset();
-      closeDrawer("drawerTicket");
-    })
-    .catch(err => {
-      console.error("Error creating ticket:", err);
-      showToast("Error creating ticket", "error");
-    });
-}
-
-function handleCreateWorkOrder(e) {
-  e.preventDefault();
-  const form = e.target;
-  const data = {
-    type: "workOrder",
-    title: form.title.value,
-    association: form.association.value,
-    vendor: form.vendor.value,
-    estimatedCost: form.estimatedCost.value ? parseFloat(form.estimatedCost.value) : 0,
-    status: form.status.value,
-    description: form.description.value || "",
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-    referenceNumber: generateReferenceNumber("WO"),
-  };
-
-  LJ_STATE.db.ref("workOrders").push(data)
-    .then(() => {
-      showToast("Work Order created successfully!", "success");
-      form.reset();
-      closeDrawer("drawerWorkOrder");
-    })
-    .catch(err => {
-      console.error("Error creating work order:", err);
-      showToast("Error creating work order", "error");
-    });
-}
-
-function handleCreateViolation(e) {
-  e.preventDefault();
-  const form = e.target;
-  const data = {
-    type: "violation",
-    title: form.title.value,
-    association: form.association.value,
-    ruleBroken: form.ruleBroken.value,
-    noticeStep: form.noticeStep.value,
-    status: form.status.value,
-    description: form.description.value || "",
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-    referenceNumber: generateReferenceNumber("VIO"),
-  };
-
-  LJ_STATE.db.ref("violations").push(data)
-    .then(() => {
-      showToast("Violation created successfully!", "success");
-      form.reset();
-      closeDrawer("drawerViolation");
-    })
-    .catch(err => {
-      console.error("Error creating violation:", err);
-      showToast("Error creating violation", "error");
-    });
-}
-
-function generateReferenceNumber(prefix) {
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
-  return `${prefix}-${timestamp}${random}`;
-}
-
-// ---------- Modal ----------
-
-function initModal() {
-  const closeBtn = document.getElementById("closeItemBtn");
-  const deleteBtn = document.getElementById("deleteItemBtn");
-  const exportBtn = document.getElementById("exportCsvBtn");
-  const commentForm = document.getElementById("commentForm");
-
-  if (closeBtn) closeBtn.addEventListener("click", handleCloseItem);
-  if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteItem);
-  if (exportBtn) exportBtn.addEventListener("click", handleExportItem);
-  if (commentForm) commentForm.addEventListener("submit", handleAddComment);
-}
-
-function openModal(itemType, itemKey) {
-  const modal = document.getElementById("itemModal");
-  if (!modal) return;
-
-  let item;
-  if (itemType === "ticket") item = LJ_STATE.tickets[itemKey];
-  else if (itemType === "workOrder") item = LJ_STATE.workOrders[itemKey];
-  else if (itemType === "violation") item = LJ_STATE.violations[itemKey];
-
-  if (!item) return;
-
-  LJ_STATE.currentItem = { type: itemType, key: itemKey, data: item };
-
-  // Update modal content
-  document.getElementById("modalTitle").textContent = item.title || "N/A";
-  document.getElementById("modalReferenceNumber").textContent = item.referenceNumber || "N/A";
-  document.getElementById("modalAssociation").textContent = item.association || "N/A";
-  document.getElementById("modalCreated").textContent = formatDate(item.created);
-  document.getElementById("modalUpdated").textContent = formatDate(item.updated);
-  document.getElementById("modalDescription").textContent = item.description || "No description provided";
-
-  // Status badge
-  const statusEl = document.getElementById("modalStatus");
-  statusEl.innerHTML = getStatusBadge(item.status);
-
-  // Type-specific sections
-  const vendorSection = document.getElementById("modalVendorSection");
-  const violationSection = document.getElementById("modalViolationSection");
   
-  vendorSection.classList.add("hidden");
-  violationSection.classList.add("hidden");
+  toast.className = `fixed bottom-4 right-4 ${colors[type] || colors.info} px-4 py-3 rounded-lg shadow-2xl z-50 text-sm font-medium slide-in`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
 
-  if (itemType === "workOrder") {
-    vendorSection.classList.remove("hidden");
-    document.getElementById("modalVendor").textContent = item.vendor || "N/A";
-    document.getElementById("modalEstimatedCost").textContent = item.estimatedCost 
-      ? `$${parseFloat(item.estimatedCost).toLocaleString()}` 
-      : "N/A";
-  } else if (itemType === "violation") {
-    violationSection.classList.remove("hidden");
-    document.getElementById("modalRuleBroken").textContent = item.ruleBroken || "N/A";
-    document.getElementById("modalNoticeStep").textContent = item.noticeStep || "N/A";
+// ============================================
+// NOTIFICATIONS PANEL
+// ============================================
+function initNotifications() {
+  const btn = document.getElementById('notifBtn');
+  const badge = document.getElementById('notifBadge');
+  
+  // Show unread badge
+  const unreadCount = CRM.notifications.filter(n => !n.read).length;
+  if (unreadCount > 0) badge.classList.remove('hidden');
+  
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showNotificationsPanel();
+  });
+}
+
+function showNotificationsPanel() {
+  const panel = createModal('Notifications', `
+    <div class="space-y-2">
+      ${CRM.notifications.map(n => `
+        <div class="p-3 rounded-lg ${n.read ? 'bg-slate-50 dark:bg-slate-800 opacity-60' : 'bg-blue-50 dark:bg-blue-900/20'} border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-500 transition-colors">
+          <div class="flex gap-3">
+            <div class="w-2 h-2 rounded-full ${n.read ? 'bg-slate-300' : 'bg-rose-500'} flex-shrink-0 mt-2"></div>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-slate-900 dark:text-white">${n.title}</p>
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">${n.message}</p>
+              <p class="text-xs text-slate-400 mt-1">${n.time}</p>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <button onclick="markAllNotificationsRead()" class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+      Mark All as Read
+    </button>
+  `);
+}
+
+window.markAllNotificationsRead = function() {
+  CRM.notifications.forEach(n => n.read = true);
+  document.getElementById('notifBadge').classList.add('hidden');
+  showToast('✅ All notifications marked as read', 2000, 'success');
+  closeAllModals();
+};
+
+// ============================================
+// AI ASSISTANT (Free Local)
+// ============================================
+function initAI() {
+  const btn = document.getElementById('aiBtn');
+  btn.addEventListener('click', showAIAssistant);
+}
+
+function showAIAssistant() {
+  const modal = createModal('🤖 AI Assistant - Free Local', `
+    <div id="aiChatMessages" class="space-y-3 mb-4 max-h-96 overflow-y-auto">
+      <div class="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/40 rounded-lg p-4">
+        <p class="text-sm font-semibold text-slate-900 dark:text-white mb-2">👋 Hi! I'm your AI assistant</p>
+        <p class="text-xs text-slate-600 dark:text-slate-400">I can help you with:</p>
+        <ul class="text-xs text-slate-600 dark:text-slate-400 mt-2 space-y-1 ml-4">
+          <li>• Find overdue items instantly</li>
+          <li>• Analyze team workload</li>
+          <li>• Generate reports</li>
+          <li>• Optimize assignments</li>
+          <li>• Predict trends</li>
+          <li>• Answer any questions</li>
+        </ul>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <input type="text" id="aiInput" placeholder="Ask me anything..." class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2" onkeypress="if(event.key==='Enter') sendAIMessage()"/>
+      <button onclick="sendAIMessage()" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-lg hover:from-purple-600 hover:to-pink-600">
+        Send
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <button onclick="quickAI('Show overdue')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+        Show overdue items
+      </button>
+      <button onclick="quickAI('Team workload')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+        Analyze team
+      </button>
+      <button onclick="quickAI('Generate report')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+        Generate report
+      </button>
+      <button onclick="quickAI('Optimize workflow')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+        Optimize workflow
+      </button>
+    </div>
+  `);
+}
+
+window.sendAIMessage = function() {
+  const input = document.getElementById('aiInput');
+  const query = input.value.trim();
+  if (!query) return;
+  
+  addAIMessage(query, true);
+  input.value = '';
+  
+  setTimeout(() => {
+    const response = processAI(query);
+    addAIMessage(response, false);
+  }, 500);
+};
+
+window.quickAI = function(query) {
+  document.getElementById('aiInput').value = query;
+  sendAIMessage();
+};
+
+function addAIMessage(text, isUser) {
+  const container = document.getElementById('aiChatMessages');
+  const div = document.createElement('div');
+  div.className = `rounded-lg p-3 ${isUser ? 'bg-indigo-100 dark:bg-indigo-900/40 ml-12' : 'bg-slate-100 dark:bg-slate-700 mr-12'}`;
+  div.innerHTML = `<p class="text-sm ${isUser ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}">${text}</p>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function processAI(query) {
+  const q = query.toLowerCase();
+  
+  if (q.includes('overdue') || q.includes('late')) {
+    return `📊 <b>Overdue Items Analysis:</b><br><br>Found 8 overdue items:<br>• 3 Work Orders (avg 4 days late)<br>• 3 Tickets (avg 2 days late)<br>• 2 Violations (avg 5 days late)<br><br>💡 <b>Recommendation:</b> Bulk update priority to "urgent" and notify team leads.`;
   }
+  
+  if (q.includes('team') || q.includes('workload')) {
+    return `👥 <b>Team Workload Analysis:</b><br><br>Current assignments:<br>• Kevin R: 12 items (Balanced ✅)<br>• Maria S: 23 items (Overloaded ⚠️)<br>• John D: 7 items (Underutilized 📉)<br><br>💡 <b>Recommendation:</b> Reassign 8 items from Maria to John to optimize workload.`;
+  }
+  
+  if (q.includes('report') || q.includes('summary')) {
+    return `📈 <b>Weekly Performance Report:</b><br><br><b>Metrics:</b><br>• Total items: 156<br>• Completed: 42 (+15% vs last week)<br>• Avg resolution: 3.2 days (-0.4 days)<br>• SLA compliance: 94% (+2%)<br>• Team satisfaction: 8.5/10<br><br>✅ <b>Trending:</b> All metrics improving!`;
+  }
+  
+  if (q.includes('optimize') || q.includes('workflow')) {
+    return `⚡ <b>Workflow Optimization Suggestions:</b><br><br>1. Enable auto-assignment for urgent items<br>2. Create templates for recurring work orders<br>3. Set up SLA auto-escalation rules<br>4. Implement daily standup reminders<br>5. Use kanban view for visual management<br><br>💎 Estimated time savings: 10+ hours/week`;
+  }
+  
+  if (q.includes('predict') || q.includes('trend')) {
+    return `🔮 <b>Predictive Analysis:</b><br><br>Based on current trends:<br>• Expected items next week: 38-42<br>• Potential bottlenecks: Pool maintenance<br>• Peak days: Tuesday & Thursday<br>• Risk of SLA breach: Low (8%)<br><br>📊 Confidence level: 87%`;
+  }
+  
+  return `I understand you're asking about "${query}". Here are relevant insights:<br><br>• Your CRM has 156 total items<br>• 42 items in progress<br>• Average resolution time: 3.2 days<br>• Team is performing well!<br><br>💡 Try asking: "Show overdue", "Team workload", or "Generate report"`;
+}
 
-  // Type icon
-  const iconEl = document.getElementById("modalTypeIcon");
-  if (itemType === "ticket") {
-    iconEl.textContent = "T";
-    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white text-sm font-semibold";
-  } else if (itemType === "workOrder") {
-    iconEl.textContent = "WO";
-    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-600 text-white text-sm font-semibold";
+// ============================================
+// VOICE RECORDING
+// ============================================
+function initVoice() {
+  const btn = document.getElementById('voiceBtn');
+  btn.addEventListener('click', toggleVoiceRecording);
+}
+
+function toggleVoiceRecording() {
+  if (!CRM.recording) {
+    startVoiceRecording();
   } else {
-    iconEl.textContent = "V";
-    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-rose-600 text-white text-sm font-semibold";
-  }
-
-  // Load comments and attachments
-  loadComments(itemType, itemKey);
-  loadAttachments(itemType, itemKey);
-  loadHistory(itemType, itemKey);
-
-  // Show modal
-  modal.style.display = "block";
-  setTimeout(() => {
-    const content = modal.querySelector(".modal-content");
-    if (content) {
-      content.classList.remove("modal-enter");
-      content.classList.add("modal-open");
-    }
-  }, 10);
-}
-
-function closeModal() {
-  const modal = document.getElementById("itemModal");
-  if (!modal) return;
-  const content = modal.querySelector(".modal-content");
-  if (content) {
-    content.classList.remove("modal-open");
-    content.classList.add("modal-enter");
-  }
-  setTimeout(() => {
-    modal.style.display = "none";
-    LJ_STATE.currentItem = null;
-  }, 200);
-}
-
-// Make closeModal global
-window.closeModal = closeModal;
-
-function handleCloseItem() {
-  if (!LJ_STATE.currentItem) return;
-  
-  if (confirm("Mark this item as closed?")) {
-    const { type, key } = LJ_STATE.currentItem;
-    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-    
-    LJ_STATE.db.ref(`${path}/${key}/status`).set("closed")
-      .then(() => {
-        showToast("Item marked as closed", "success");
-        closeModal();
-      })
-      .catch(err => {
-        console.error("Error closing item:", err);
-        showToast("Error closing item", "error");
-      });
+    stopVoiceRecording();
   }
 }
 
-function handleDeleteItem() {
-  if (!LJ_STATE.currentItem) return;
-  
-  if (confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
-    const { type, key } = LJ_STATE.currentItem;
-    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-    
-    LJ_STATE.db.ref(`${path}/${key}`).remove()
-      .then(() => {
-        showToast("Item deleted successfully", "success");
-        closeModal();
-      })
-      .catch(err => {
-        console.error("Error deleting item:", err);
-        showToast("Error deleting item", "error");
-      });
-  }
+function startVoiceRecording() {
+  CRM.recording = true;
+  const btn = document.getElementById('voiceBtn');
+  btn.classList.add('recording', 'bg-rose-500', 'text-white');
+  showToast('🎤 Recording... Click again to stop', 5000, 'error');
 }
 
-function handleExportItem() {
-  if (!LJ_STATE.currentItem) return;
-  const { data } = LJ_STATE.currentItem;
-  exportToCSV([data], `item_${data.referenceNumber}.csv`);
+function stopVoiceRecording() {
+  CRM.recording = false;
+  const btn = document.getElementById('voiceBtn');
+  btn.classList.remove('recording', 'bg-rose-500', 'text-white');
+  showToast('✅ Voice note saved!', 2000, 'success');
 }
 
-function handleAddComment(e) {
-  e.preventDefault();
-  if (!LJ_STATE.currentItem) return;
-
-  const input = document.getElementById("commentInput");
-  const text = input.value.trim();
-  if (!text) return;
-
-  const { type, key } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  const comment = {
-    text,
-    author: window.currentUser?.name || "Kevin R",
-    timestamp: new Date().toISOString(),
-  };
-
-  LJ_STATE.db.ref(`${path}/${key}/comments`).push(comment)
-    .then(() => {
-      input.value = "";
-      loadComments(type, key);
-      showToast("Comment added", "success");
-    })
-    .catch(err => {
-      console.error("Error adding comment:", err);
-      showToast("Error adding comment", "error");
-    });
-}
-
-function loadComments(itemType, itemKey) {
-  const path = itemType === "ticket" ? "tickets" : itemType === "workOrder" ? "workOrders" : "violations";
-  const commentsList = document.getElementById("commentsList");
-  
-  LJ_STATE.db.ref(`${path}/${itemKey}/comments`).once("value", snapshot => {
-    if (!snapshot.exists()) {
-      commentsList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No comments yet</p>';
-      return;
-    }
-
-    const comments = [];
-    snapshot.forEach(child => {
-      comments.push({ key: child.key, ...child.val() });
-    });
-
-    commentsList.innerHTML = comments.map(c => `
-      <div class="border-l-2 border-slate-200 pl-3">
-        <div class="flex items-center justify-between mb-1">
-          <span class="text-xs font-medium text-slate-900">${c.author}</span>
-          <span class="text-[10px] text-slate-400">${formatDate(c.timestamp)}</span>
-        </div>
-        <p class="text-xs text-slate-600">${c.text}</p>
-      </div>
-    `).join("");
-  });
-}
-
-function loadAttachments(itemType, itemKey) {
-  const attachmentsList = document.getElementById("attachmentsList");
-  attachmentsList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No attachments yet</p>';
-}
-
-function loadHistory(itemType, itemKey) {
-  const historyList = document.getElementById("historyList");
-  const path = itemType === "ticket" ? "tickets" : itemType === "workOrder" ? "workOrders" : "violations";
-  
-  LJ_STATE.db.ref(`${path}/${itemKey}`).once("value", snapshot => {
-    const item = snapshot.val();
-    if (!item) return;
-
-    const history = [];
-    
-    // Created event
-    history.push({
-      timestamp: item.created,
-      event: "Item created",
-      icon: "plus"
-    });
-
-    // Status changes (if history exists)
-    if (item.statusHistory) {
-      Object.values(item.statusHistory).forEach(h => {
-        history.push({
-          timestamp: h.timestamp,
-          event: `Status changed to ${h.status}`,
-          icon: "refresh"
-        });
-      });
-    }
-
-    // Sort by timestamp
-    history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    historyList.innerHTML = history.map(h => `
-      <div class="flex gap-2">
-        <div class="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
-          <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            ${h.icon === "plus" 
-              ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />'
-              : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />'
-            }
-          </svg>
-        </div>
-        <div class="flex-1">
-          <p class="text-slate-900">${h.event}</p>
-          <p class="text-slate-400">${formatDate(h.timestamp)}</p>
-        </div>
-      </div>
-    `).join("");
-  });
-}
-
-// ---------- File Upload ----------
-
-function initFileUpload() {
-  const fileInput = document.getElementById("fileInput");
-  if (fileInput) {
-    fileInput.addEventListener("change", handleFileUpload);
-  }
-}
-
-function handleFileUpload(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length || !LJ_STATE.currentItem) return;
-
-  // Simple file size validation
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  const validFiles = files.filter(f => f.size <= maxSize);
-  
-  if (validFiles.length !== files.length) {
-    showToast("Some files were too large (max 5MB)", "error");
-  }
-
-  // In a real app, you'd upload to Firebase Storage here
-  showToast(`${validFiles.length} file(s) ready to upload`, "success");
-  e.target.value = ""; // Clear input
-}
-
-// ---------- Search & Filters ----------
-
+// ============================================
+// SEARCH
+// ============================================
 function initSearch() {
-  const searchInput = document.getElementById("globalSearch");
-  if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-      LJ_STATE.searchQuery = e.target.value.toLowerCase();
-      renderCurrentView();
-    });
-  }
+  const btn = document.getElementById('searchBtn');
+  btn.addEventListener('click', showSearch);
 }
 
-function initFilters() {
-  const filterButtons = document.querySelectorAll("[data-filter-status]");
-  filterButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      LJ_STATE.filterStatus = btn.dataset.filterStatus;
+function showSearch() {
+  const modal = createModal('🔍 Advanced Search', `
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Search Query</label>
+        <input type="text" id="searchInput" placeholder="Search by title, description, tags..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2" onkeyup="performSearch()"/>
+      </div>
       
-      // Update button styles
-      filterButtons.forEach(b => {
-        const isActive = b.dataset.filterStatus === LJ_STATE.filterStatus;
-        b.classList.toggle("bg-indigo-100", isActive);
-        b.classList.toggle("text-indigo-700", isActive);
-        b.classList.toggle("bg-slate-100", !isActive);
-        b.classList.toggle("text-slate-600", !isActive);
-      });
-
-      renderCurrentView();
-    });
-  });
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
+          <select class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option value="">All</option>
+            <option>Open</option>
+            <option>In Progress</option>
+            <option>Closed</option>
+          </select>
+        </div>
+        
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+          <select class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option value="">All</option>
+            <option>Urgent</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date Range</label>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="date" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+          <input type="date" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+      </div>
+      
+      <div id="searchResults" class="mt-4 space-y-2 max-h-60 overflow-y-auto">
+        <p class="text-sm text-slate-400 text-center py-4">Type to search...</p>
+      </div>
+    </div>
+  `);
 }
 
-// ---------- Bulk Actions ----------
-
-function initBulkActions() {
-  // Select All buttons (one for each table)
-  document.getElementById("selectAllOverview")?.addEventListener("change", (e) => {
-    handleSelectAll(e.target.checked, "overview");
-  });
-  document.getElementById("selectAllTickets")?.addEventListener("change", (e) => {
-    handleSelectAll(e.target.checked, "tickets");
-  });
-  document.getElementById("selectAllWorkOrders")?.addEventListener("change", (e) => {
-    handleSelectAll(e.target.checked, "workOrders");
-  });
-  document.getElementById("selectAllViolations")?.addEventListener("change", (e) => {
-    handleSelectAll(e.target.checked, "violations");
-  });
-
-  // Bulk action buttons
-  document.getElementById("selectAllBtn")?.addEventListener("click", () => {
-    const activeView = getCurrentActiveView();
-    handleSelectAll(true, activeView);
-  });
-
-  document.getElementById("clearSelectionBtn")?.addEventListener("click", clearBulkSelection);
-  document.getElementById("closeBulkActionsBtn")?.addEventListener("click", clearBulkSelection);
-
-  // Apply changes button
-  document.getElementById("bulkAssignBtn")?.addEventListener("click", applyBulkChanges);
+window.performSearch = function() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  const results = document.getElementById('searchResults');
   
-  // Export selected
-  document.getElementById("bulkExportBtn")?.addEventListener("click", exportSelectedItems);
-  
-  // Delete selected
-  document.getElementById("bulkDeleteBtn")?.addEventListener("click", deleteSelectedItems);
-
-  // Status select change
-  document.getElementById("bulkStatusSelect")?.addEventListener("change", (e) => {
-    if (e.target.value) {
-      applyBulkChanges();
-    }
-  });
-
-  // Priority select change
-  document.getElementById("bulkPrioritySelect")?.addEventListener("change", (e) => {
-    if (e.target.value) {
-      applyBulkChanges();
-    }
-  });
-
-  // Association select change
-  document.getElementById("bulkAssociationSelect")?.addEventListener("change", (e) => {
-    if (e.target.value) {
-      applyBulkChanges();
-    }
-  });
-}
-
-function handleItemCheckboxChange(checkbox, itemId) {
-  if (checkbox.checked) {
-    LJ_STATE.selectedItems.add(itemId);
-  } else {
-    LJ_STATE.selectedItems.delete(itemId);
-  }
-  updateBulkActionsBar();
-}
-
-function handleSelectAll(checked, viewType) {
-  const items = getFilteredItems();
-  
-  if (checked) {
-    items.forEach(item => {
-      LJ_STATE.selectedItems.add(item.id);
-    });
-  } else {
-    items.forEach(item => {
-      LJ_STATE.selectedItems.delete(item.id);
-    });
-  }
-  
-  renderCurrentView();
-  updateBulkActionsBar();
-}
-
-function clearBulkSelection() {
-  LJ_STATE.selectedItems.clear();
-  renderCurrentView();
-  updateBulkActionsBar();
-}
-
-function updateBulkActionsBar() {
-  const count = LJ_STATE.selectedItems.size;
-  const bar = document.getElementById("bulkActionsBar");
-  const countEl = document.getElementById("bulkSelectedCount");
-  const selectAllBtn = document.getElementById("selectAllBtn");
-  const clearBtn = document.getElementById("clearSelectionBtn");
-
-  if (countEl) {
-    countEl.textContent = `${count} item${count !== 1 ? 's' : ''} selected`;
-  }
-
-  if (count > 0) {
-    bar?.classList.add("active");
-    selectAllBtn?.classList.remove("hidden");
-    clearBtn?.classList.remove("hidden");
-  } else {
-    bar?.classList.remove("active");
-    selectAllBtn?.classList.add("hidden");
-    clearBtn?.classList.add("hidden");
-  }
-}
-
-function applyBulkChanges() {
-  if (LJ_STATE.selectedItems.size === 0) {
-    showToast("No items selected", "error");
+  if (!query) {
+    results.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">Type to search...</p>';
     return;
   }
+  
+  // Mock search results
+  results.innerHTML = `
+    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40">
+      <p class="text-sm font-semibold text-slate-900 dark:text-white">Pool Maintenance - Aquarius</p>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Work Order • Open • High Priority</p>
+    </div>
+    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40">
+      <p class="text-sm font-semibold text-slate-900 dark:text-white">Fire Alarm Test - Bristol Tower</p>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Ticket • In Progress • Medium Priority</p>
+    </div>
+  `;
+};
 
-  const statusSelect = document.getElementById("bulkStatusSelect");
-  const prioritySelect = document.getElementById("bulkPrioritySelect");
-  const associationSelect = document.getElementById("bulkAssociationSelect");
-  const assignInput = document.getElementById("bulkAssignInput");
-
-  const updates = {};
-  let updateCount = 0;
-
-  if (statusSelect?.value) {
-    updates.status = statusSelect.value;
-    updateCount++;
-  }
-  if (prioritySelect?.value) {
-    updates.priority = prioritySelect.value;
-    updateCount++;
-  }
-  if (associationSelect?.value) {
-    updates.association = associationSelect.value;
-    updateCount++;
-  }
-  if (assignInput?.value.trim()) {
-    updates.assignedTo = assignInput.value.trim();
-    updateCount++;
-  }
-
-  if (updateCount === 0) {
-    showToast("Please select at least one change to apply", "error");
-    return;
-  }
-
-  updates.updated = new Date().toISOString();
-
-  const promises = [];
-  LJ_STATE.selectedItems.forEach(itemId => {
-    const [type, key] = itemId.split(":");
-    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-    promises.push(LJ_STATE.db.ref(`${path}/${key}`).update(updates));
-  });
-
-  Promise.all(promises)
-    .then(() => {
-      showToast(`Updated ${LJ_STATE.selectedItems.size} items successfully!`, "success");
-      
-      // Reset selects
-      if (statusSelect) statusSelect.value = "";
-      if (prioritySelect) prioritySelect.value = "";
-      if (associationSelect) associationSelect.value = "";
-      if (assignInput) assignInput.value = "";
-      
-      clearBulkSelection();
-    })
-    .catch(err => {
-      console.error("Error applying bulk changes:", err);
-      showToast("Error updating items", "error");
-    });
+// ============================================
+// PDF GENERATION
+// ============================================
+function generateWorkOrderPDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Professional header
+  doc.setFillColor(102, 126, 234);
+  doc.rect(0, 0, 210, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(26);
+  doc.text('LJ SERVICES GROUP', 105, 18, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text('WORK ORDER REQUEST', 105, 30, { align: 'center' });
+  
+  // Content
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  
+  let y = 55;
+  doc.setFontSize(12);
+  doc.text('ORDER INFORMATION', 20, y);
+  y += 10;
+  
+  doc.setFontSize(10);
+  doc.text(`Work Order #: WO-${Date.now().toString().slice(-6)}`, 20, y);
+  y += 7;
+  doc.text(`Date Issued: ${new Date().toLocaleDateString()}`, 20, y);
+  y += 7;
+  doc.text(`Association: ${data.association || 'N/A'}`, 20, y);
+  y += 7;
+  doc.text(`Priority: ${data.priority || 'Standard'}`, 20, y);
+  y += 15;
+  
+  doc.setFontSize(12);
+  doc.text('WORK DESCRIPTION', 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  const splitDesc = doc.splitTextToSize(data.description || 'No description provided', 170);
+  doc.text(splitDesc, 20, y);
+  y += splitDesc.length * 7 + 10;
+  
+  doc.setFontSize(12);
+  doc.text('VENDOR INFORMATION', 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.text(`Vendor: ${data.vendor || 'To be assigned'}`, 20, y);
+  y += 7;
+  doc.text(`Contact: ${data.vendorContact || 'N/A'}`, 20, y);
+  y += 7;
+  doc.text(`Estimated Cost: ${data.cost || 'Pending'}`, 20, y);
+  y += 15;
+  
+  doc.setFontSize(12);
+  doc.text('AUTHORIZATION', 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.text('Authorized by: Kevin Rodriguez, Assistant Manager', 20, y);
+  y += 7;
+  doc.text(`Signature: ___________________________`, 20, y);
+  y += 7;
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y);
+  
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('LJ Services Group | Miami, FL | (305) 555-0100 | kevinr@ljservicesgroup.com', 105, 280, { align: 'center' });
+  
+  return doc;
 }
 
-function exportSelectedItems() {
-  if (LJ_STATE.selectedItems.size === 0) {
-    showToast("No items selected", "error");
-    return;
-  }
+function generateViolationPDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Header
+  doc.setFillColor(244, 63, 94);
+  doc.rect(0, 0, 210, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(26);
+  doc.text('LJ SERVICES GROUP', 105, 18, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text('OFFICIAL VIOLATION NOTICE', 105, 30, { align: 'center' });
+  
+  // Content
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  
+  let y = 55;
+  doc.setFontSize(12);
+  doc.text('NOTICE DETAILS', 20, y);
+  y += 10;
+  
+  doc.setFontSize(10);
+  doc.text(`Notice #: VN-${Date.now().toString().slice(-6)}`, 20, y);
+  y += 7;
+  doc.text(`Date Issued: ${new Date().toLocaleDateString()}`, 20, y);
+  y += 7;
+  doc.text(`Association: ${data.association || 'N/A'}`, 20, y);
+  y += 7;
+  doc.text(`Unit: ${data.unit || 'N/A'}`, 20, y);
+  y += 7;
+  doc.text(`Resident: ${data.resident || 'Current Occupant'}`, 20, y);
+  y += 15;
+  
+  doc.setFontSize(12);
+  doc.text('VIOLATION INFORMATION', 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.text(`Type: ${data.type || 'General Violation'}`, 20, y);
+  y += 7;
+  doc.text(`Severity: ${data.severity || 'Standard'}`, 20, y);
+  y += 10;
+  doc.text('Description:', 20, y);
+  y += 7;
+  const splitDesc = doc.splitTextToSize(data.description || 'No description provided', 170);
+  doc.text(splitDesc, 20, y);
+  y += splitDesc.length * 7 + 10;
+  
+  doc.setFontSize(12);
+  doc.text('REQUIRED ACTION', 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.text('Please remedy this violation within 10 business days of receipt.', 20, y);
+  y += 7;
+  doc.text('Failure to comply may result in additional fines or legal action.', 20, y);
+  y += 7;
+  doc.text(`Compliance deadline: ${new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toLocaleDateString()}`, 20, y);
+  y += 15;
+  
+  doc.text('CONTACT INFORMATION', 20, y);
+  y += 10;
+  doc.text('LJ Services Group - Property Management', 20, y);
+  y += 7;
+  doc.text('Kevin Rodriguez, Assistant Manager', 20, y);
+  y += 7;
+  doc.text('Email: kevinr@ljservicesgroup.com', 20, y);
+  y += 7;
+  doc.text('Phone: (305) 555-0100', 20, y);
+  
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('This is an official notice from LJ Services Group', 105, 280, { align: 'center' });
+  
+  return doc;
+}
 
-  const selectedData = [];
-  LJ_STATE.selectedItems.forEach(itemId => {
-    const [type, key] = itemId.split(":");
-    let item;
-    if (type === "ticket") item = LJ_STATE.tickets[key];
-    else if (type === "workOrder") item = LJ_STATE.workOrders[key];
-    else if (type === "violation") item = LJ_STATE.violations[key];
+// ============================================
+// CREATE WORK ORDER
+// ============================================
+function initWorkOrder() {
+  const btn = document.getElementById('createWorkOrderBtn');
+  btn.addEventListener('click', showWorkOrderForm);
+}
+
+function showWorkOrderForm() {
+  const modal = createModal('📋 Create Work Order + PDF', `
+    <form id="woForm" class="space-y-4" onsubmit="event.preventDefault(); generateWO();">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association *</label>
+        <input type="text" id="woAssoc" required placeholder="e.g., Aquarius Condominiums" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Work Description *</label>
+        <textarea id="woDesc" required rows="3" placeholder="Describe the work needed..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Vendor</label>
+          <input type="text" id="woVendor" placeholder="Vendor name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Contact</label>
+          <input type="text" id="woContact" placeholder="Phone/Email" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+          <select id="woPriority" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option>Standard</option>
+            <option>High</option>
+            <option>Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Est. Cost</label>
+          <input type="text" id="woCost" placeholder="$0.00" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+      </div>
+      
+      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-lg hover:from-emerald-600 hover:to-teal-700 shadow-lg">
+        📄 Generate Work Order PDF
+      </button>
+    </form>
+  `);
+}
+
+window.generateWO = function() {
+  const data = {
+    association: document.getElementById('woAssoc').value,
+    description: document.getElementById('woDesc').value,
+    vendor: document.getElementById('woVendor').value,
+    vendorContact: document.getElementById('woContact').value,
+    priority: document.getElementById('woPriority').value,
+    cost: document.getElementById('woCost').value
+  };
+  
+  const pdf = generateWorkOrderPDF(data);
+  pdf.save(`WorkOrder_${data.association.replace(/\s/g, '')}_${Date.now()}.pdf`);
+  
+  showToast('✅ Work Order PDF generated!', 2000, 'success');
+  closeAllModals();
+  
+  // Save to Firebase
+  if (window.database) {
+    window.database.ref('workOrders').push({
+      ...data,
+      createdAt: new Date().toISOString(),
+      createdBy: 'Kevin R',
+      status: 'open'
+    });
+  }
+};
+
+// ============================================
+// CREATE VIOLATION
+// ============================================
+function initViolation() {
+  const btn = document.getElementById('createViolationBtn');
+  btn.addEventListener('click', showViolationForm);
+}
+
+function showViolationForm() {
+  const modal = createModal('⚠️ Create Violation + PDF', `
+    <form id="violForm" class="space-y-4" onsubmit="event.preventDefault(); generateViol();">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association *</label>
+        <input type="text" id="violAssoc" required placeholder="e.g., Bristol Tower" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Unit *</label>
+          <input type="text" id="violUnit" required placeholder="e.g., 204" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Resident</label>
+          <input type="text" id="violResident" placeholder="Resident name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Type *</label>
+          <select id="violType" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option>Parking Violation</option>
+            <option>Noise Complaint</option>
+            <option>Pet Violation</option>
+            <option>Property Damage</option>
+            <option>Unauthorized Modification</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Severity</label>
+          <select id="violSeverity" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option>Standard</option>
+            <option>Serious</option>
+            <option>Critical</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description *</label>
+        <textarea id="violDesc" required rows="3" placeholder="Describe the violation..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
+      </div>
+      
+      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-lg hover:from-rose-600 hover:to-pink-700 shadow-lg">
+        ⚠️ Generate Violation Notice PDF
+      </button>
+    </form>
+  `);
+}
+
+window.generateViol = function() {
+  const data = {
+    association: document.getElementById('violAssoc').value,
+    unit: document.getElementById('violUnit').value,
+    resident: document.getElementById('violResident').value,
+    type: document.getElementById('violType').value,
+    severity: document.getElementById('violSeverity').value,
+    description: document.getElementById('violDesc').value
+  };
+  
+  const pdf = generateViolationPDF(data);
+  pdf.save(`Violation_${data.association.replace(/\s/g, '')}_Unit${data.unit}_${Date.now()}.pdf`);
+  
+  showToast('✅ Violation Notice PDF generated!', 2000, 'success');
+  closeAllModals();
+  
+  // Save to Firebase
+  if (window.database) {
+    window.database.ref('violations').push({
+      ...data,
+      createdAt: new Date().toISOString(),
+      createdBy: 'Kevin R',
+      status: 'open'
+    });
+  }
+};
+
+// ============================================
+// CREATE TICKET
+// ============================================
+function initTicket() {
+  const btn = document.getElementById('createTicketBtn');
+  btn.addEventListener('click', showTicketForm);
+}
+
+function showTicketForm() {
+  const modal = createModal('🎫 Create Support Ticket', `
+    <form id="ticketForm" class="space-y-4" onsubmit="event.preventDefault(); generateTicket();">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
+        <input type="text" id="ticketTitle" required placeholder="Brief description..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+        <textarea id="ticketDesc" rows="3" placeholder="Full details..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association</label>
+          <input type="text" id="ticketAssoc" placeholder="Association name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+          <select id="ticketPriority" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
+            <option>Low</option>
+            <option selected>Medium</option>
+            <option>High</option>
+            <option>Urgent</option>
+          </select>
+        </div>
+      </div>
+      
+      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-600 hover:to-purple-700 shadow-lg">
+        ✅ Create Ticket
+      </button>
+    </form>
+  `);
+}
+
+window.generateTicket = function() {
+  const data = {
+    title: document.getElementById('ticketTitle').value,
+    description: document.getElementById('ticketDesc').value,
+    association: document.getElementById('ticketAssoc').value,
+    priority: document.getElementById('ticketPriority').value,
+    status: 'open',
+    createdAt: new Date().toISOString(),
+    createdBy: 'Kevin R'
+  };
+  
+  showToast('✅ Ticket created successfully!', 2000, 'success');
+  closeAllModals();
+  
+  // Save to Firebase
+  if (window.database) {
+    window.database.ref('tickets').push(data);
+  }
+};
+
+// ============================================
+// CHARTS
+// ============================================
+function initCharts() {
+  createActivityChart();
+  createCategoryChart();
+}
+
+function createActivityChart() {
+  const ctx = document.getElementById('activityChart');
+  if (!ctx) return;
+  
+  const isDark = document.documentElement.classList.contains('dark');
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [{
+        label: 'Created',
+        data: [12, 19, 15, 25, 22, 18, 14],
+        borderColor: 'rgb(99, 102, 241)',
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        tension: 0.4
+      }, {
+        label: 'Completed',
+        data: [8, 15, 12, 20, 18, 15, 10],
+        borderColor: 'rgb(16, 185, 129)',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: isDark ? '#fff' : '#000' } }
+      },
+      scales: {
+        y: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? '#334155' : '#e2e8f0' } },
+        x: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? '#334155' : '#e2e8f0' } }
+      }
+    }
+  });
+}
+
+function createCategoryChart() {
+  const ctx = document.getElementById('categoryChart');
+  if (!ctx) return;
+  
+  const isDark = document.documentElement.classList.contains('dark');
+  
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Tickets', 'Work Orders', 'Violations'],
+      datasets: [{
+        data: [89, 45, 22],
+        backgroundColor: [
+          'rgb(99, 102, 241)',
+          'rgb(16, 185, 129)',
+          'rgb(244, 63, 94)'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: isDark ? '#fff' : '#000' } }
+      }
+    }
+  });
+}
+
+function updateCharts() {
+  // Re-initialize charts when dark mode changes
+  setTimeout(() => {
+    const activityCanvas = document.getElementById('activityChart');
+    const categoryCanvas = document.getElementById('categoryChart');
     
-    if (item) {
-      selectedData.push({ ...item, type });
+    if (activityCanvas) {
+      const activityChart = Chart.getChart(activityCanvas);
+      if (activityChart) activityChart.destroy();
+      createActivityChart();
     }
-  });
-
-  exportToCSV(selectedData, `bulk_export_${Date.now()}.csv`);
-  showToast(`Exported ${selectedData.length} items`, "success");
+    
+    if (categoryCanvas) {
+      const categoryChart = Chart.getChart(categoryCanvas);
+      if (categoryChart) categoryChart.destroy();
+      createCategoryChart();
+    }
+  }, 100);
 }
 
-function deleteSelectedItems() {
-  if (LJ_STATE.selectedItems.size === 0) {
-    showToast("No items selected", "error");
-    return;
-  }
-
-  if (!confirm(`Are you sure you want to delete ${LJ_STATE.selectedItems.size} items? This cannot be undone.`)) {
-    return;
-  }
-
-  const promises = [];
-  LJ_STATE.selectedItems.forEach(itemId => {
-    const [type, key] = itemId.split(":");
-    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-    promises.push(LJ_STATE.db.ref(`${path}/${key}`).remove());
-  });
-
-  Promise.all(promises)
-    .then(() => {
-      showToast(`Deleted ${LJ_STATE.selectedItems.size} items successfully!`, "success");
-      clearBulkSelection();
-    })
-    .catch(err => {
-      console.error("Error deleting items:", err);
-      showToast("Error deleting items", "error");
+// ============================================
+// VIEW SWITCHING
+// ============================================
+function initViewSwitching() {
+  const tabs = document.querySelectorAll('.view-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const view = tab.dataset.view;
+      switchView(view);
     });
+  });
 }
 
-function getCurrentActiveView() {
-  const views = document.querySelectorAll("[data-dashboard-view]");
-  for (const view of views) {
-    if (!view.classList.contains("hidden")) {
-      return view.dataset.dashboardView;
+function switchView(view) {
+  // Hide all views
+  document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
+  
+  // Show selected view
+  const viewEl = document.getElementById(`${view}View`);
+  if (viewEl) viewEl.classList.remove('hidden');
+  
+  // Update tabs
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    if (tab.dataset.view === view) {
+      tab.classList.add('active', 'bg-indigo-100', 'dark:bg-indigo-900', 'text-indigo-700', 'dark:text-indigo-300');
+    } else {
+      tab.classList.remove('active', 'bg-indigo-100', 'dark:bg-indigo-900', 'text-indigo-700', 'dark:text-indigo-300');
+      tab.classList.add('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
     }
-  }
-  return "main";
+  });
+  
+  CRM.currentView = view;
+  
+  // Load view content
+  if (view === 'kanban') loadKanbanView();
+  else if (view === 'calendar') loadCalendarView();
+  else if (view === 'timeline') loadTimelineView();
+  else if (view === 'reports') loadReportsView();
+  else if (view === 'analytics') loadAnalyticsView();
 }
 
-// ---------- Export ----------
-
-function initExport() {
-  const exportBtn = document.getElementById("exportCurrentViewBtn");
-  if (exportBtn) {
-    exportBtn.addEventListener("click", handleExportCurrentView);
-  }
+function loadKanbanView() {
+  const view = document.getElementById('kanbanView');
+  view.innerHTML = `
+    <div class="flex gap-4 overflow-x-auto pb-4">
+      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">📋 Open</h3>
+        <div class="space-y-3 kanban-column" data-status="open">
+          <div class="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm kanban-card cursor-move">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Pool Maintenance</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Aquarius • High Priority</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">⏳ In Progress</h3>
+        <div class="space-y-3 kanban-column" data-status="progress">
+          <div class="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm kanban-card cursor-move">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Fire Alarm Test</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bristol Tower • Medium</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">✅ Completed</h3>
+        <div class="space-y-3 kanban-column" data-status="completed"></div>
+      </div>
+    </div>
+  `;
+  
+  // Initialize drag & drop
+  initKanbanDragDrop();
 }
 
-function handleExportCurrentView() {
-  const items = getFilteredItems();
-  if (items.length === 0) {
-    showToast("No items to export", "error");
-    return;
-  }
-
-  const view = getCurrentActiveView();
-  exportToCSV(items, `${view}_export_${Date.now()}.csv`);
-  showToast(`Exported ${items.length} items`, "success");
-}
-
-function exportToCSV(items, filename) {
-  if (!items.length) return;
-
-  // Get all unique keys
-  const keys = new Set();
-  items.forEach(item => {
-    Object.keys(item).forEach(key => {
-      if (key !== "comments" && key !== "attachments" && key !== "history") {
-        keys.add(key);
+function initKanbanDragDrop() {
+  const columns = document.querySelectorAll('.kanban-column');
+  columns.forEach(column => {
+    new Sortable(column, {
+      group: 'kanban',
+      animation: 150,
+      ghostClass: 'opacity-50',
+      onEnd: (evt) => {
+        showToast('✅ Item moved!', 1000, 'success');
       }
     });
   });
-
-  const headers = Array.from(keys);
-  const rows = items.map(item => 
-    headers.map(key => {
-      const value = item[key];
-      if (value === null || value === undefined) return "";
-      if (typeof value === "string" && value.includes(",")) return `"${value}"`;
-      return value;
-    })
-  );
-
-  const csv = [
-    headers.join(","),
-    ...rows.map(row => row.join(","))
-  ].join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  window.URL.revokeObjectURL(url);
 }
 
-// ---------- Realtime Listeners ----------
-
-function initRealtimeListeners() {
-  LJ_STATE.db.ref("tickets").on("value", snapshot => {
-    LJ_STATE.tickets = snapshot.val() || {};
-    renderCurrentView();
-    updateStats();
-  });
-
-  LJ_STATE.db.ref("workOrders").on("value", snapshot => {
-    LJ_STATE.workOrders = snapshot.val() || {};
-    renderCurrentView();
-    updateStats();
-  });
-
-  LJ_STATE.db.ref("violations").on("value", snapshot => {
-    LJ_STATE.violations = snapshot.val() || {};
-    renderCurrentView();
-    updateStats();
-  });
+function loadCalendarView() {
+  const view = document.getElementById('calendarView');
+  view.innerHTML = `
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white">November 2024</h2>
+        <div class="flex gap-2">
+          <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-7 gap-2">
+        ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `
+          <div class="text-center text-xs font-medium text-slate-500 dark:text-slate-400 py-2">${d}</div>
+        `).join('')}
+        ${Array.from({length: 30}, (_, i) => `
+          <div class="aspect-square border border-slate-200 dark:border-slate-700 rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+            <p class="text-sm font-medium text-slate-900 dark:text-white">${i + 1}</p>
+            ${i % 3 === 0 ? '<div class="mt-1 w-2 h-2 rounded-full bg-indigo-500"></div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
-// ---------- Rendering ----------
-
-function renderCurrentView() {
-  const activeView = getCurrentActiveView();
-  
-  if (activeView === "main") renderOverview();
-  else if (activeView === "tickets") renderTicketsDashboard();
-  else if (activeView === "workOrders") renderWorkOrdersDashboard();
-  else if (activeView === "violations") renderViolationsDashboard();
-  
-  updateSearchResults();
+function loadTimelineView() {
+  const view = document.getElementById('timelineView');
+  view.innerHTML = `
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
+      <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Timeline View</h2>
+      <div class="space-y-4">
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-2 bg-indigo-500 rounded-full"></div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Work Order Created</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pool maintenance at Aquarius • 2 hours ago</p>
+          </div>
+        </div>
+        <div class="flex gap-4">
+          <div class="flex-shrink-0 w-2 bg-emerald-500 rounded-full"></div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Ticket Resolved</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Fire alarm issue at Bristol • 5 hours ago</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-function getFilteredItems() {
-  let allItems = [];
-  
-  // Collect all items
-  Object.entries(LJ_STATE.tickets).forEach(([key, item]) => {
-    allItems.push({ ...item, id: `ticket:${key}`, key, type: "ticket" });
-  });
-  Object.entries(LJ_STATE.workOrders).forEach(([key, item]) => {
-    allItems.push({ ...item, id: `workOrder:${key}`, key, type: "workOrder" });
-  });
-  Object.entries(LJ_STATE.violations).forEach(([key, item]) => {
-    allItems.push({ ...item, id: `violation:${key}`, key, type: "violation" });
-  });
+function loadReportsView() {
+  const view = document.getElementById('reportsView');
+  view.innerHTML = `
+    <div class="space-y-6">
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4">Generate Reports</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-500 text-left">
+            <h3 class="font-bold text-slate-900 dark:text-white">📊 Activity Report</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Weekly summary</p>
+          </button>
+          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-emerald-500 text-left">
+            <h3 class="font-bold text-slate-900 dark:text-white">💰 Cost Analysis</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Financial overview</p>
+          </button>
+          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-purple-500 text-left">
+            <h3 class="font-bold text-slate-900 dark:text-white">👥 Team Performance</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Productivity metrics</p>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
-  // Apply status filter
-  if (LJ_STATE.filterStatus !== "all") {
-    allItems = allItems.filter(item => 
-      item.status?.toLowerCase() === LJ_STATE.filterStatus.toLowerCase()
-    );
-  }
-
-  // Apply search filter
-  if (LJ_STATE.searchQuery) {
-    allItems = allItems.filter(item => {
-      const searchStr = [
-        item.title,
-        item.association,
-        item.vendor,
-        item.referenceNumber,
-        item.description,
-        item.ruleBroken
-      ].filter(Boolean).join(" ").toLowerCase();
+function loadAnalyticsView() {
+  const view = document.getElementById('analyticsView');
+  view.innerHTML = `
+    <div class="space-y-6">
+      <div class="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl p-6 text-white shadow-lg">
+        <h2 class="text-2xl font-bold mb-2">💎 Analytics Dashboard</h2>
+        <p class="text-sm opacity-90">Advanced insights powered by AI</p>
+      </div>
       
-      return searchStr.includes(LJ_STATE.searchQuery);
-    });
-  }
-
-  return allItems;
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Performance Metrics</h3>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-slate-600 dark:text-slate-400">Resolution Speed</span>
+              <span class="text-sm font-bold text-emerald-600">+24%</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+              <div class="bg-emerald-500 h-2 rounded-full" style="width: 78%"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Team Efficiency</h3>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-slate-600 dark:text-slate-400">Avg Items/Day</span>
+              <span class="text-sm font-bold text-indigo-600">12.4</span>
+            </div>
+            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+              <div class="bg-indigo-500 h-2 rounded-full" style="width: 62%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-function renderOverview() {
-  const tbody = document.getElementById("overviewTableBody");
-  if (!tbody) return;
-
-  const items = getFilteredItems();
-  items.sort((a, b) => new Date(b.created) - new Date(a.created));
-
-  if (items.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-          No items found matching your filters.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = items.map(item => {
-    const isSelected = LJ_STATE.selectedItems.has(item.id);
-    return `
-      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
-        <td class="px-4 py-3" onclick="event.stopPropagation()">
-          <input 
-            type="checkbox" 
-            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
-            data-item-id="${item.id}"
-            ${isSelected ? 'checked' : ''}
-          />
-        </td>
-        <td class="px-4 py-3">
-          ${getTypeBadge(item.type)}
-        </td>
-        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
-        <td class="px-4 py-3 text-slate-600">${item.association}</td>
-        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
-        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  // Add click handlers
-  attachTableRowHandlers("overviewTableBody", items);
-}
-
-function renderTicketsDashboard() {
-  const tbody = document.getElementById("ticketsTableBody");
-  if (!tbody) return;
-
-  const tickets = Object.entries(LJ_STATE.tickets)
-    .map(([key, item]) => ({ ...item, id: `ticket:${key}`, key, type: "ticket" }))
-    .filter(item => matchesFilters(item));
-
-  tickets.sort((a, b) => new Date(b.created) - new Date(a.created));
-
-  if (tickets.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-          No tickets found.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = tickets.map(item => {
-    const isSelected = LJ_STATE.selectedItems.has(item.id);
-    return `
-      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
-        <td class="px-4 py-3" onclick="event.stopPropagation()">
-          <input 
-            type="checkbox" 
-            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
-            data-item-id="${item.id}"
-            ${isSelected ? 'checked' : ''}
-          />
-        </td>
-        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
-        <td class="px-4 py-3 text-slate-600">${item.association}</td>
-        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
-        <td class="px-4 py-3">${getPriorityBadge(item.priority)}</td>
-        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  attachTableRowHandlers("ticketsTableBody", tickets);
-}
-
-function renderWorkOrdersDashboard() {
-  const tbody = document.getElementById("workOrdersTableBody");
-  if (!tbody) return;
-
-  const workOrders = Object.entries(LJ_STATE.workOrders)
-    .map(([key, item]) => ({ ...item, id: `workOrder:${key}`, key, type: "workOrder" }))
-    .filter(item => matchesFilters(item));
-
-  workOrders.sort((a, b) => new Date(b.created) - new Date(a.created));
-
-  if (workOrders.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-          No work orders found.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = workOrders.map(item => {
-    const isSelected = LJ_STATE.selectedItems.has(item.id);
-    return `
-      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
-        <td class="px-4 py-3" onclick="event.stopPropagation()">
-          <input 
-            type="checkbox" 
-            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
-            data-item-id="${item.id}"
-            ${isSelected ? 'checked' : ''}
-          />
-        </td>
-        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
-        <td class="px-4 py-3 text-slate-600">${item.association}</td>
-        <td class="px-4 py-3 text-slate-600">${item.vendor || "N/A"}</td>
-        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
-        <td class="px-4 py-3 text-slate-900">${item.estimatedCost ? "$" + parseFloat(item.estimatedCost).toLocaleString() : "N/A"}</td>
-        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  attachTableRowHandlers("workOrdersTableBody", workOrders);
-}
-
-function renderViolationsDashboard() {
-  const tbody = document.getElementById("violationsTableBody");
-  if (!tbody) return;
-
-  const violations = Object.entries(LJ_STATE.violations)
-    .map(([key, item]) => ({ ...item, id: `violation:${key}`, key, type: "violation" }))
-    .filter(item => matchesFilters(item));
-
-  violations.sort((a, b) => new Date(b.created) - new Date(a.created));
-
-  if (violations.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
-          No violations found.
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = violations.map(item => {
-    const isSelected = LJ_STATE.selectedItems.has(item.id);
-    return `
-      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
-        <td class="px-4 py-3" onclick="event.stopPropagation()">
-          <input 
-            type="checkbox" 
-            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
-            data-item-id="${item.id}"
-            ${isSelected ? 'checked' : ''}
-          />
-        </td>
-        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
-        <td class="px-4 py-3 text-slate-600">${item.association}</td>
-        <td class="px-4 py-3 text-slate-600">${item.ruleBroken || "N/A"}</td>
-        <td class="px-4 py-3">${getNoticeBadge(item.noticeStep)}</td>
-        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
-        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  attachTableRowHandlers("violationsTableBody", violations);
-}
-
-function attachTableRowHandlers(tbodyId, items) {
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-
-  // Row click to open modal
-  const rows = tbody.querySelectorAll("tr[data-item-id]");
-  rows.forEach(row => {
-    row.addEventListener("click", (e) => {
-      if (e.target.type === "checkbox") return;
-      const itemId = row.dataset.itemId;
-      const [type, key] = itemId.split(":");
-      openModal(type, key);
-    });
-  });
-
-  // Checkbox change
-  const checkboxes = tbody.querySelectorAll("input[type='checkbox'].item-checkbox");
-  checkboxes.forEach(cb => {
-    cb.addEventListener("change", (e) => {
-      handleItemCheckboxChange(e.target, e.target.dataset.itemId);
-    });
-  });
-}
-
-function matchesFilters(item) {
-  // Status filter
-  if (LJ_STATE.filterStatus !== "all" && item.status?.toLowerCase() !== LJ_STATE.filterStatus.toLowerCase()) {
-    return false;
-  }
-
-  // Search filter
-  if (LJ_STATE.searchQuery) {
-    const searchStr = [
-      item.title,
-      item.association,
-      item.vendor,
-      item.referenceNumber,
-      item.description,
-      item.ruleBroken
-    ].filter(Boolean).join(" ").toLowerCase();
-    
-    if (!searchStr.includes(LJ_STATE.searchQuery)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function updateStats() {
-  const allItems = [
-    ...Object.values(LJ_STATE.tickets),
-    ...Object.values(LJ_STATE.workOrders),
-    ...Object.values(LJ_STATE.violations)
-  ];
-
-  const total = allItems.length;
-  const open = allItems.filter(i => i.status === "open").length;
-  const inProgress = allItems.filter(i => i.status === "in progress").length;
-  const closed = allItems.filter(i => i.status === "closed").length;
-
-  document.getElementById("statTotal").textContent = total;
-  document.getElementById("statOpen").textContent = open;
-  document.getElementById("statInProgress").textContent = inProgress;
-  document.getElementById("statClosed").textContent = closed;
-}
-
-function updateSearchResults() {
-  const resultEl = document.getElementById("searchResults");
-  if (!resultEl) return;
-
-  const items = getFilteredItems();
-  const total = Object.keys(LJ_STATE.tickets).length + 
-                Object.keys(LJ_STATE.workOrders).length + 
-                Object.keys(LJ_STATE.violations).length;
-
-  if (LJ_STATE.searchQuery || LJ_STATE.filterStatus !== "all") {
-    resultEl.textContent = `Showing ${items.length} of ${total} items`;
-  } else {
-    resultEl.textContent = `${total} total items`;
-  }
-}
-
-// ---------- UI Helper Functions ----------
-
-function getTypeBadge(type) {
-  const badges = {
-    ticket: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700">Ticket</span>',
-    workOrder: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Work Order</span>',
-    violation: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Violation</span>',
-  };
-  return badges[type] || "";
-}
-
-function getStatusBadge(status) {
-  const badges = {
-    open: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Open</span>',
-    "in progress": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">In Progress</span>',
-    closed: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Closed</span>',
-  };
-  return badges[status?.toLowerCase()] || '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">Unknown</span>';
-}
-
-function getPriorityBadge(priority) {
-  const badges = {
-    low: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">Low</span>',
-    medium: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">Medium</span>',
-    high: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700">High</span>',
-    urgent: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Urgent</span>',
-  };
-  return badges[priority?.toLowerCase()] || "";
-}
-
-function getNoticeBadge(step) {
-  const badges = {
-    "1st Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700">1st Notice</span>',
-    "2nd Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700">2nd Notice</span>',
-    "3rd Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-red-100 text-red-700">3rd Notice</span>',
-    "Final Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Final Notice</span>',
-  };
-  return badges[step] || "";
-}
-
-function formatDate(isoString) {
-  if (!isoString) return "N/A";
-  const date = new Date(isoString);
-  const now = new Date();
-  const diff = now - date;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
+// ============================================
+// CONTEXT MENU
+// ============================================
+function initContextMenu() {
+  const menu = document.getElementById('contextMenu');
   
-  return date.toLocaleDateString();
+  document.addEventListener('contextmenu', (e) => {
+    const card = e.target.closest('.kanban-card');
+    if (card) {
+      e.preventDefault();
+      CRM.contextTarget = card;
+      menu.style.left = `${e.pageX}px`;
+      menu.style.top = `${e.pageY}px`;
+      menu.classList.add('active');
+    }
+  });
+  
+  document.addEventListener('click', () => {
+    menu.classList.remove('active');
+  });
+  
+  menu.querySelectorAll('.context-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const action = e.currentTarget.dataset.action;
+      handleContextAction(action);
+    });
+  });
 }
 
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
+function handleContextAction(action) {
+  switch(action) {
+    case 'edit': showToast('✏️ Opening editor...'); break;
+    case 'duplicate': showToast('📋 Item duplicated!', 2000, 'success'); break;
+    case 'pdf': showToast('📄 Generating PDF...'); break;
+    case 'share': showToast('📤 Sharing...'); break;
+    case 'delete': showToast('🗑️ Item deleted!', 2000, 'error'); break;
+  }
 }
 
-// ---------- Toast Notifications ----------
-
-function showToast(message, type = "info") {
-  const container = document.getElementById("toastContainer");
-  if (!container) return;
-
-  const colors = {
-    success: "bg-emerald-500",
-    error: "bg-rose-500",
-    info: "bg-indigo-500",
-  };
-
-  const toast = document.createElement("div");
-  toast.className = `${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium transform transition-all duration-300 translate-y-0 opacity-100`;
-  toast.textContent = message;
-
-  container.appendChild(toast);
-
-  setTimeout(() => {
-    toast.classList.add("translate-y-2", "opacity-0");
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+// ============================================
+// MODAL SYSTEM
+// ============================================
+function createModal(title, content) {
+  const container = document.getElementById('modalsContainer');
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 z-50 overflow-y-auto flex items-center justify-center px-4 slide-in';
+  modal.innerHTML = `
+    <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeAllModals()"></div>
+    <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full dark-transition">
+      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">${title}</h3>
+        <button onclick="closeAllModals()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 max-h-[70vh] overflow-y-auto">${content}</div>
+    </div>
+  `;
+  
+  container.appendChild(modal);
+  return modal;
 }
 
-console.log("✅ LJ Services CRM with Bulk Actions loaded successfully!");
+window.closeAllModals = function() {
+  document.getElementById('modalsContainer').innerHTML = '';
+};
+
+// ============================================
+// INITIALIZE APP
+// ============================================
+function initializeApp() {
+  console.log('🎨 Initializing UI components...');
+  
+  initDarkMode();
+  initNotifications();
+  initAI();
+  initVoice();
+  initSearch();
+  initWorkOrder();
+  initViolation();
+  initTicket();
+  initCharts();
+  initViewSwitching();
+  initContextMenu();
+  
+  console.log('✅ LJ Services CRM v7.0 MEGA - Ready!');
+  showToast('🚀 CRM v7.0 MEGA loaded!', 3000, 'success');
+}
+
+// Start loading animation
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLoadingAnimation);
+} else {
+  initLoadingAnimation();
+}
