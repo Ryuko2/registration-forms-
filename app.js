@@ -1,24 +1,48 @@
 // ============================================
 // LJ SERVICES GROUP - PROFESSIONAL CRM
-// With Modal, Comments, and Status Management
+// Enhanced with Bulk Actions & Advanced Features
 // ============================================
 
-console.log("🚀 Loading Professional CRM with Modal + Comments...");
+console.log("🚀 Loading Professional CRM with Bulk Actions...");
 
 const LJ_STATE = {
   db: null,
   tickets: {},
   workOrders: {},
   violations: {},
-  currentItem: null, // Currently open item in modal
+  currentItem: null,
   searchQuery: "",
   filterStatus: "all",
-  attachments: {}, // File attachments storage
+  attachments: {},
   emailConfig: {
     notifyOnComment: true,
     notifyOnStatusChange: true,
-    notifyEmail: "", // Will be set from user or item
+    notifyEmail: "",
   },
+  // Bulk Actions State
+  selectedItems: new Set(),
+  bulkActionsActive: false,
+  associations: [
+    "Aquarius at Brickell",
+    "Bay Point Club",
+    "Brickell Townhouse",
+    "Bristol Tower",
+    "Carriage Club North",
+    "Carriage Club South",
+    "Carriage Club West",
+    "Casa Grande",
+    "Colonnade on Williams Island",
+    "Commodore Plaza West",
+    "Cricket Club",
+    "Eldorado Towers",
+    "Flamingo South Beach",
+    "Hamptons East",
+    "Marenas Beach Resort",
+    "Renaissance Towers",
+    "Richmond Park",
+    "Turnberry Village South",
+    "Winston Towers"
+  ]
 };
 
 // ---------- Initialization ----------
@@ -34,9 +58,10 @@ document.addEventListener("DOMContentLoaded", () => {
     initFilters();
     initFileUpload();
     initExport();
+    initBulkActions();
     initRealtimeListeners();
     initLogoutButton();
-    console.log("✅ Professional CRM initialized!");
+    console.log("✅ Professional CRM initialized with Bulk Actions!");
   } catch (err) {
     console.error("❌ Error initializing app:", err);
   }
@@ -101,1090 +126,1206 @@ function initDashboardNavigation() {
       view.classList.toggle("hidden", view.dataset.dashboardView !== id);
     });
 
-    if (mobileSelect && mobileSelect.value !== id) mobileSelect.value = id;
-    if (LABELS[id]) {
-      if (titleEl) titleEl.textContent = LABELS[id].title;
-      if (subtitleEl) subtitleEl.textContent = LABELS[id].subtitle;
+    if (titleEl && LABELS[id]) {
+      titleEl.textContent = LABELS[id].title;
+      subtitleEl.textContent = LABELS[id].subtitle;
     }
+
+    if (mobileSelect) mobileSelect.value = id;
+    
+    // Clear bulk selections when switching dashboards
+    clearBulkSelection();
+    renderCurrentView();
   }
 
   tabButtons.forEach((btn) => {
-    btn.addEventListener("click", () => setDashboard(btn.dataset.dashboard || "main"));
+    btn.addEventListener("click", () => setDashboard(btn.dataset.dashboard));
   });
 
   if (mobileSelect) {
-    mobileSelect.addEventListener("change", (e) => setDashboard(e.target.value || "main"));
+    mobileSelect.addEventListener("change", (e) => setDashboard(e.target.value));
   }
 
   setDashboard("main");
+}
+
+// ---------- Drawers (Ticket, Work Order, Violation) ----------
+
+function initDrawers() {
+  // Populate associations
+  populateAssociationSelects();
+
+  // Open drawer buttons
+  document.querySelectorAll("[data-open-drawer]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const drawerType = btn.dataset.openDrawer;
+      openDrawer(`drawer${capitalize(drawerType)}`);
+    });
+  });
+
+  // Form submissions
+  document.getElementById("ticketForm").addEventListener("submit", handleCreateTicket);
+  document.getElementById("workOrderForm").addEventListener("submit", handleCreateWorkOrder);
+  document.getElementById("violationForm").addEventListener("submit", handleCreateViolation);
+}
+
+function populateAssociationSelects() {
+  const selects = [
+    ...document.querySelectorAll("#ticketForm select[name='association']"),
+    ...document.querySelectorAll("#workOrderForm select[name='association']"),
+    ...document.querySelectorAll("#violationForm select[name='association']"),
+  ];
+
+  selects.forEach(select => {
+    select.innerHTML = '<option value="">Select...</option>';
+    LJ_STATE.associations.forEach(assoc => {
+      const opt = document.createElement("option");
+      opt.value = assoc;
+      opt.textContent = assoc;
+      select.appendChild(opt);
+    });
+  });
+
+  // Also populate bulk association select
+  const bulkSelect = document.getElementById("bulkAssociationSelect");
+  if (bulkSelect) {
+    bulkSelect.innerHTML = '<option value="">Change Association...</option>';
+    LJ_STATE.associations.forEach(assoc => {
+      const opt = document.createElement("option");
+      opt.value = assoc;
+      opt.textContent = assoc;
+      bulkSelect.appendChild(opt);
+    });
+  }
+}
+
+function openDrawer(id) {
+  const drawer = document.getElementById(id);
+  if (!drawer) return;
+  drawer.style.display = "block";
+  setTimeout(() => {
+    const content = drawer.querySelector(".drawer-content");
+    if (content) {
+      content.classList.remove("drawer-enter");
+      content.classList.add("drawer-open");
+    }
+  }, 10);
+}
+
+function closeDrawer(id) {
+  const drawer = document.getElementById(id);
+  if (!drawer) return;
+  const content = drawer.querySelector(".drawer-content");
+  if (content) {
+    content.classList.remove("drawer-open");
+    content.classList.add("drawer-enter");
+  }
+  setTimeout(() => {
+    drawer.style.display = "none";
+  }, 200);
+}
+
+// Make closeDrawer global for onclick
+window.closeDrawer = closeDrawer;
+
+function handleCreateTicket(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    type: "ticket",
+    title: form.title.value,
+    association: form.association.value,
+    status: form.status.value,
+    priority: form.priority.value,
+    description: form.description.value || "",
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    referenceNumber: generateReferenceNumber("TKT"),
+  };
+
+  LJ_STATE.db.ref("tickets").push(data)
+    .then(() => {
+      showToast("Ticket created successfully!", "success");
+      form.reset();
+      closeDrawer("drawerTicket");
+    })
+    .catch(err => {
+      console.error("Error creating ticket:", err);
+      showToast("Error creating ticket", "error");
+    });
+}
+
+function handleCreateWorkOrder(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    type: "workOrder",
+    title: form.title.value,
+    association: form.association.value,
+    vendor: form.vendor.value,
+    estimatedCost: form.estimatedCost.value ? parseFloat(form.estimatedCost.value) : 0,
+    status: form.status.value,
+    description: form.description.value || "",
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    referenceNumber: generateReferenceNumber("WO"),
+  };
+
+  LJ_STATE.db.ref("workOrders").push(data)
+    .then(() => {
+      showToast("Work Order created successfully!", "success");
+      form.reset();
+      closeDrawer("drawerWorkOrder");
+    })
+    .catch(err => {
+      console.error("Error creating work order:", err);
+      showToast("Error creating work order", "error");
+    });
+}
+
+function handleCreateViolation(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    type: "violation",
+    title: form.title.value,
+    association: form.association.value,
+    ruleBroken: form.ruleBroken.value,
+    noticeStep: form.noticeStep.value,
+    status: form.status.value,
+    description: form.description.value || "",
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    referenceNumber: generateReferenceNumber("VIO"),
+  };
+
+  LJ_STATE.db.ref("violations").push(data)
+    .then(() => {
+      showToast("Violation created successfully!", "success");
+      form.reset();
+      closeDrawer("drawerViolation");
+    })
+    .catch(err => {
+      console.error("Error creating violation:", err);
+      showToast("Error creating violation", "error");
+    });
+}
+
+function generateReferenceNumber(prefix) {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  return `${prefix}-${timestamp}${random}`;
+}
+
+// ---------- Modal ----------
+
+function initModal() {
+  const closeBtn = document.getElementById("closeItemBtn");
+  const deleteBtn = document.getElementById("deleteItemBtn");
+  const exportBtn = document.getElementById("exportCsvBtn");
+  const commentForm = document.getElementById("commentForm");
+
+  if (closeBtn) closeBtn.addEventListener("click", handleCloseItem);
+  if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteItem);
+  if (exportBtn) exportBtn.addEventListener("click", handleExportItem);
+  if (commentForm) commentForm.addEventListener("submit", handleAddComment);
+}
+
+function openModal(itemType, itemKey) {
+  const modal = document.getElementById("itemModal");
+  if (!modal) return;
+
+  let item;
+  if (itemType === "ticket") item = LJ_STATE.tickets[itemKey];
+  else if (itemType === "workOrder") item = LJ_STATE.workOrders[itemKey];
+  else if (itemType === "violation") item = LJ_STATE.violations[itemKey];
+
+  if (!item) return;
+
+  LJ_STATE.currentItem = { type: itemType, key: itemKey, data: item };
+
+  // Update modal content
+  document.getElementById("modalTitle").textContent = item.title || "N/A";
+  document.getElementById("modalReferenceNumber").textContent = item.referenceNumber || "N/A";
+  document.getElementById("modalAssociation").textContent = item.association || "N/A";
+  document.getElementById("modalCreated").textContent = formatDate(item.created);
+  document.getElementById("modalUpdated").textContent = formatDate(item.updated);
+  document.getElementById("modalDescription").textContent = item.description || "No description provided";
+
+  // Status badge
+  const statusEl = document.getElementById("modalStatus");
+  statusEl.innerHTML = getStatusBadge(item.status);
+
+  // Type-specific sections
+  const vendorSection = document.getElementById("modalVendorSection");
+  const violationSection = document.getElementById("modalViolationSection");
+  
+  vendorSection.classList.add("hidden");
+  violationSection.classList.add("hidden");
+
+  if (itemType === "workOrder") {
+    vendorSection.classList.remove("hidden");
+    document.getElementById("modalVendor").textContent = item.vendor || "N/A";
+    document.getElementById("modalEstimatedCost").textContent = item.estimatedCost 
+      ? `$${parseFloat(item.estimatedCost).toLocaleString()}` 
+      : "N/A";
+  } else if (itemType === "violation") {
+    violationSection.classList.remove("hidden");
+    document.getElementById("modalRuleBroken").textContent = item.ruleBroken || "N/A";
+    document.getElementById("modalNoticeStep").textContent = item.noticeStep || "N/A";
+  }
+
+  // Type icon
+  const iconEl = document.getElementById("modalTypeIcon");
+  if (itemType === "ticket") {
+    iconEl.textContent = "T";
+    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white text-sm font-semibold";
+  } else if (itemType === "workOrder") {
+    iconEl.textContent = "WO";
+    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-600 text-white text-sm font-semibold";
+  } else {
+    iconEl.textContent = "V";
+    iconEl.className = "inline-flex h-10 w-10 items-center justify-center rounded-xl bg-rose-600 text-white text-sm font-semibold";
+  }
+
+  // Load comments and attachments
+  loadComments(itemType, itemKey);
+  loadAttachments(itemType, itemKey);
+  loadHistory(itemType, itemKey);
+
+  // Show modal
+  modal.style.display = "block";
+  setTimeout(() => {
+    const content = modal.querySelector(".modal-content");
+    if (content) {
+      content.classList.remove("modal-enter");
+      content.classList.add("modal-open");
+    }
+  }, 10);
+}
+
+function closeModal() {
+  const modal = document.getElementById("itemModal");
+  if (!modal) return;
+  const content = modal.querySelector(".modal-content");
+  if (content) {
+    content.classList.remove("modal-open");
+    content.classList.add("modal-enter");
+  }
+  setTimeout(() => {
+    modal.style.display = "none";
+    LJ_STATE.currentItem = null;
+  }, 200);
+}
+
+// Make closeModal global
+window.closeModal = closeModal;
+
+function handleCloseItem() {
+  if (!LJ_STATE.currentItem) return;
+  
+  if (confirm("Mark this item as closed?")) {
+    const { type, key } = LJ_STATE.currentItem;
+    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+    
+    LJ_STATE.db.ref(`${path}/${key}/status`).set("closed")
+      .then(() => {
+        showToast("Item marked as closed", "success");
+        closeModal();
+      })
+      .catch(err => {
+        console.error("Error closing item:", err);
+        showToast("Error closing item", "error");
+      });
+  }
+}
+
+function handleDeleteItem() {
+  if (!LJ_STATE.currentItem) return;
+  
+  if (confirm("Are you sure you want to delete this item? This action cannot be undone.")) {
+    const { type, key } = LJ_STATE.currentItem;
+    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+    
+    LJ_STATE.db.ref(`${path}/${key}`).remove()
+      .then(() => {
+        showToast("Item deleted successfully", "success");
+        closeModal();
+      })
+      .catch(err => {
+        console.error("Error deleting item:", err);
+        showToast("Error deleting item", "error");
+      });
+  }
+}
+
+function handleExportItem() {
+  if (!LJ_STATE.currentItem) return;
+  const { data } = LJ_STATE.currentItem;
+  exportToCSV([data], `item_${data.referenceNumber}.csv`);
+}
+
+function handleAddComment(e) {
+  e.preventDefault();
+  if (!LJ_STATE.currentItem) return;
+
+  const input = document.getElementById("commentInput");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const { type, key } = LJ_STATE.currentItem;
+  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+
+  const comment = {
+    text,
+    author: window.currentUser?.name || "Kevin R",
+    timestamp: new Date().toISOString(),
+  };
+
+  LJ_STATE.db.ref(`${path}/${key}/comments`).push(comment)
+    .then(() => {
+      input.value = "";
+      loadComments(type, key);
+      showToast("Comment added", "success");
+    })
+    .catch(err => {
+      console.error("Error adding comment:", err);
+      showToast("Error adding comment", "error");
+    });
+}
+
+function loadComments(itemType, itemKey) {
+  const path = itemType === "ticket" ? "tickets" : itemType === "workOrder" ? "workOrders" : "violations";
+  const commentsList = document.getElementById("commentsList");
+  
+  LJ_STATE.db.ref(`${path}/${itemKey}/comments`).once("value", snapshot => {
+    if (!snapshot.exists()) {
+      commentsList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No comments yet</p>';
+      return;
+    }
+
+    const comments = [];
+    snapshot.forEach(child => {
+      comments.push({ key: child.key, ...child.val() });
+    });
+
+    commentsList.innerHTML = comments.map(c => `
+      <div class="border-l-2 border-slate-200 pl-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-medium text-slate-900">${c.author}</span>
+          <span class="text-[10px] text-slate-400">${formatDate(c.timestamp)}</span>
+        </div>
+        <p class="text-xs text-slate-600">${c.text}</p>
+      </div>
+    `).join("");
+  });
+}
+
+function loadAttachments(itemType, itemKey) {
+  const attachmentsList = document.getElementById("attachmentsList");
+  attachmentsList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No attachments yet</p>';
+}
+
+function loadHistory(itemType, itemKey) {
+  const historyList = document.getElementById("historyList");
+  const path = itemType === "ticket" ? "tickets" : itemType === "workOrder" ? "workOrders" : "violations";
+  
+  LJ_STATE.db.ref(`${path}/${itemKey}`).once("value", snapshot => {
+    const item = snapshot.val();
+    if (!item) return;
+
+    const history = [];
+    
+    // Created event
+    history.push({
+      timestamp: item.created,
+      event: "Item created",
+      icon: "plus"
+    });
+
+    // Status changes (if history exists)
+    if (item.statusHistory) {
+      Object.values(item.statusHistory).forEach(h => {
+        history.push({
+          timestamp: h.timestamp,
+          event: `Status changed to ${h.status}`,
+          icon: "refresh"
+        });
+      });
+    }
+
+    // Sort by timestamp
+    history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    historyList.innerHTML = history.map(h => `
+      <div class="flex gap-2">
+        <div class="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            ${h.icon === "plus" 
+              ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />'
+              : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />'
+            }
+          </svg>
+        </div>
+        <div class="flex-1">
+          <p class="text-slate-900">${h.event}</p>
+          <p class="text-slate-400">${formatDate(h.timestamp)}</p>
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+// ---------- File Upload ----------
+
+function initFileUpload() {
+  const fileInput = document.getElementById("fileInput");
+  if (fileInput) {
+    fileInput.addEventListener("change", handleFileUpload);
+  }
+}
+
+function handleFileUpload(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length || !LJ_STATE.currentItem) return;
+
+  // Simple file size validation
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  const validFiles = files.filter(f => f.size <= maxSize);
+  
+  if (validFiles.length !== files.length) {
+    showToast("Some files were too large (max 5MB)", "error");
+  }
+
+  // In a real app, you'd upload to Firebase Storage here
+  showToast(`${validFiles.length} file(s) ready to upload`, "success");
+  e.target.value = ""; // Clear input
 }
 
 // ---------- Search & Filters ----------
 
 function initSearch() {
   const searchInput = document.getElementById("globalSearch");
-  const clearButton = document.getElementById("clearFilters");
-  
-  if (!searchInput) return;
-
-  searchInput.addEventListener("input", (e) => {
-    LJ_STATE.searchQuery = e.target.value.toLowerCase().trim();
-    updateResultsCount();
-    renderTables();
-    
-    // Show/hide clear button
-    if (clearButton) {
-      clearButton.classList.toggle("hidden", !LJ_STATE.searchQuery && LJ_STATE.filterStatus === "all");
-    }
-  });
-
-  // Clear filters button
-  if (clearButton) {
-    clearButton.addEventListener("click", () => {
-      LJ_STATE.searchQuery = "";
-      LJ_STATE.filterStatus = "all";
-      searchInput.value = "";
-      
-      // Reset filter buttons
-      const filterButtons = document.querySelectorAll("[data-filter-status]");
-      filterButtons.forEach((btn) => {
-        btn.classList.remove("bg-indigo-100", "text-indigo-700");
-        btn.classList.add("bg-slate-100", "text-slate-600");
-        if (btn.dataset.filterStatus === "all") {
-          btn.classList.add("bg-indigo-100", "text-indigo-700");
-          btn.classList.remove("bg-slate-100", "text-slate-600");
-        }
-      });
-      
-      clearButton.classList.add("hidden");
-      updateResultsCount();
-      renderTables();
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      LJ_STATE.searchQuery = e.target.value.toLowerCase();
+      renderCurrentView();
     });
   }
 }
 
 function initFilters() {
   const filterButtons = document.querySelectorAll("[data-filter-status]");
-  const clearButton = document.getElementById("clearFilters");
-  
-  filterButtons.forEach((btn) => {
+  filterButtons.forEach(btn => {
     btn.addEventListener("click", () => {
-      // Update active button
-      filterButtons.forEach((b) => {
-        b.classList.remove("bg-indigo-100", "text-indigo-700");
-        b.classList.add("bg-slate-100", "text-slate-600");
+      LJ_STATE.filterStatus = btn.dataset.filterStatus;
+      
+      // Update button styles
+      filterButtons.forEach(b => {
+        const isActive = b.dataset.filterStatus === LJ_STATE.filterStatus;
+        b.classList.toggle("bg-indigo-100", isActive);
+        b.classList.toggle("text-indigo-700", isActive);
+        b.classList.toggle("bg-slate-100", !isActive);
+        b.classList.toggle("text-slate-600", !isActive);
       });
-      btn.classList.add("bg-indigo-100", "text-indigo-700");
-      btn.classList.remove("bg-slate-100", "text-slate-600");
-      
-      // Set filter
-      LJ_STATE.filterStatus = btn.dataset.filterStatus || "all";
-      updateResultsCount();
-      renderTables();
-      
-      // Show/hide clear button
-      if (clearButton) {
-        clearButton.classList.toggle("hidden", !LJ_STATE.searchQuery && LJ_STATE.filterStatus === "all");
-      }
+
+      renderCurrentView();
     });
   });
 }
 
-function updateResultsCount() {
-  const resultsEl = document.getElementById("searchResults");
-  if (!resultsEl) return;
+// ---------- Bulk Actions ----------
 
-  const ticketsArray = objToArray(LJ_STATE.tickets);
-  const workOrdersArray = objToArray(LJ_STATE.workOrders);
-  const violationsArray = objToArray(LJ_STATE.violations);
-  const allItems = [...ticketsArray, ...workOrdersArray, ...violationsArray];
-
-  let filtered = applyFilters(allItems);
-  
-  const total = allItems.length;
-  const showing = filtered.length;
-  
-  if (LJ_STATE.searchQuery || LJ_STATE.filterStatus !== "all") {
-    resultsEl.textContent = `Showing ${showing} of ${total} items`;
-  } else {
-    resultsEl.textContent = `${total} total items`;
-  }
-}
-
-function applyFilters(items) {
-  let filtered = items;
-
-  // Apply search filter
-  if (LJ_STATE.searchQuery) {
-    filtered = filtered.filter((item) => {
-      const searchable = [
-        item.title,
-        item.association,
-        item.referenceNumber,
-        item.vendor,
-        item.ruleBroken,
-        item.description,
-        item.status,
-        item.priority,
-      ].join(" ").toLowerCase();
-      return searchable.includes(LJ_STATE.searchQuery);
-    });
-  }
-
-  // Apply status filter
-  if (LJ_STATE.filterStatus !== "all") {
-    filtered = filtered.filter((item) => 
-      (item.status || "").toLowerCase() === LJ_STATE.filterStatus.toLowerCase()
-    );
-  }
-
-  return filtered;
-}
-
-// ---------- File Upload System ----------
-
-function initFileUpload() {
-  const fileInput = document.getElementById("fileInput");
-  if (!fileInput) return;
-
-  fileInput.addEventListener("change", (e) => {
-    handleFileUpload(e.target.files);
-    fileInput.value = ""; // Reset input
+function initBulkActions() {
+  // Select All buttons (one for each table)
+  document.getElementById("selectAllOverview")?.addEventListener("change", (e) => {
+    handleSelectAll(e.target.checked, "overview");
   });
-}
+  document.getElementById("selectAllTickets")?.addEventListener("change", (e) => {
+    handleSelectAll(e.target.checked, "tickets");
+  });
+  document.getElementById("selectAllWorkOrders")?.addEventListener("change", (e) => {
+    handleSelectAll(e.target.checked, "workOrders");
+  });
+  document.getElementById("selectAllViolations")?.addEventListener("change", (e) => {
+    handleSelectAll(e.target.checked, "violations");
+  });
 
-function handleFileUpload(files) {
-  if (!files || !files.length || !LJ_STATE.currentItem) return;
+  // Bulk action buttons
+  document.getElementById("selectAllBtn")?.addEventListener("click", () => {
+    const activeView = getCurrentActiveView();
+    handleSelectAll(true, activeView);
+  });
 
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+  document.getElementById("clearSelectionBtn")?.addEventListener("click", clearBulkSelection);
+  document.getElementById("closeBulkActionsBtn")?.addEventListener("click", clearBulkSelection);
 
-  Array.from(files).forEach((file) => {
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      showToast(`${file.name} is too large (max 5MB)`, "error");
-      return;
+  // Apply changes button
+  document.getElementById("bulkAssignBtn")?.addEventListener("click", applyBulkChanges);
+  
+  // Export selected
+  document.getElementById("bulkExportBtn")?.addEventListener("click", exportSelectedItems);
+  
+  // Delete selected
+  document.getElementById("bulkDeleteBtn")?.addEventListener("click", deleteSelectedItems);
+
+  // Status select change
+  document.getElementById("bulkStatusSelect")?.addEventListener("change", (e) => {
+    if (e.target.value) {
+      applyBulkChanges();
     }
+  });
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const attachment = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        data: e.target.result, // Base64 data
-        uploadedBy: window.currentUser?.name || "User",
-        uploadedAt: Date.now(),
-      };
+  // Priority select change
+  document.getElementById("bulkPrioritySelect")?.addEventListener("change", (e) => {
+    if (e.target.value) {
+      applyBulkChanges();
+    }
+  });
 
-      const attachmentId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      LJ_STATE.db.ref(`${path}/${id}/attachments/${attachmentId}`).set(attachment)
-        .then(() => {
-          showToast(`${file.name} uploaded!`, "success");
-          addHistoryEntry("file_uploaded", `File uploaded: ${file.name}`);
-          sendEmailNotification("file_uploaded", `New file attached: ${file.name}`);
-        })
-        .catch((err) => {
-          console.error("Error uploading file:", err);
-          showToast(`Error uploading ${file.name}`, "error");
-        });
-    };
-
-    reader.readAsDataURL(file);
+  // Association select change
+  document.getElementById("bulkAssociationSelect")?.addEventListener("change", (e) => {
+    if (e.target.value) {
+      applyBulkChanges();
+    }
   });
 }
 
-function loadAttachments() {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  LJ_STATE.db.ref(`${path}/${id}/attachments`).on("value", (snap) => {
-    const attachments = snap.val() || {};
-    renderAttachments(attachments);
-  });
+function handleItemCheckboxChange(checkbox, itemId) {
+  if (checkbox.checked) {
+    LJ_STATE.selectedItems.add(itemId);
+  } else {
+    LJ_STATE.selectedItems.delete(itemId);
+  }
+  updateBulkActionsBar();
 }
 
-function renderAttachments(attachments) {
-  const container = document.getElementById("attachmentsList");
-  if (!container) return;
+function handleSelectAll(checked, viewType) {
+  const items = getFilteredItems();
+  
+  if (checked) {
+    items.forEach(item => {
+      LJ_STATE.selectedItems.add(item.id);
+    });
+  } else {
+    items.forEach(item => {
+      LJ_STATE.selectedItems.delete(item.id);
+    });
+  }
+  
+  renderCurrentView();
+  updateBulkActionsBar();
+}
 
-  const attachmentsArray = Object.entries(attachments).sort((a, b) => 
-    (b[1].uploadedAt || 0) - (a[1].uploadedAt || 0)
-  );
+function clearBulkSelection() {
+  LJ_STATE.selectedItems.clear();
+  renderCurrentView();
+  updateBulkActionsBar();
+}
 
-  if (!attachmentsArray.length) {
-    container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No attachments yet</p>';
+function updateBulkActionsBar() {
+  const count = LJ_STATE.selectedItems.size;
+  const bar = document.getElementById("bulkActionsBar");
+  const countEl = document.getElementById("bulkSelectedCount");
+  const selectAllBtn = document.getElementById("selectAllBtn");
+  const clearBtn = document.getElementById("clearSelectionBtn");
+
+  if (countEl) {
+    countEl.textContent = `${count} item${count !== 1 ? 's' : ''} selected`;
+  }
+
+  if (count > 0) {
+    bar?.classList.add("active");
+    selectAllBtn?.classList.remove("hidden");
+    clearBtn?.classList.remove("hidden");
+  } else {
+    bar?.classList.remove("active");
+    selectAllBtn?.classList.add("hidden");
+    clearBtn?.classList.add("hidden");
+  }
+}
+
+function applyBulkChanges() {
+  if (LJ_STATE.selectedItems.size === 0) {
+    showToast("No items selected", "error");
     return;
   }
 
-  container.innerHTML = attachmentsArray.map(([id, attachment]) => {
-    const icon = attachment.type.startsWith('image/') ? '🖼️' :
-                 attachment.type.includes('pdf') ? '📄' :
-                 attachment.type.includes('word') ? '📝' :
-                 attachment.type.includes('excel') || attachment.type.includes('sheet') ? '📊' : '📎';
+  const statusSelect = document.getElementById("bulkStatusSelect");
+  const prioritySelect = document.getElementById("bulkPrioritySelect");
+  const associationSelect = document.getElementById("bulkAssociationSelect");
+  const assignInput = document.getElementById("bulkAssignInput");
 
-    const sizeKB = Math.round(attachment.size / 1024);
-    const timeStr = attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleString() : "";
+  const updates = {};
+  let updateCount = 0;
 
-    return `
-      <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg hover:bg-slate-100 group">
-        <span class="text-lg">${icon}</span>
-        <div class="flex-1 min-w-0">
-          <p class="text-xs font-medium text-slate-900 truncate">${escapeHtml(attachment.name)}</p>
-          <p class="text-[10px] text-slate-500">${sizeKB}KB • ${escapeHtml(attachment.uploadedBy || "")}</p>
-        </div>
-        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            onclick="downloadAttachment('${escapeAttr(attachment.data)}', '${escapeAttr(attachment.name)}')"
-            class="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-            title="Download"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-          <button 
-            onclick="deleteAttachment('${escapeAttr(id)}')"
-            class="p-1 text-rose-600 hover:bg-rose-50 rounded"
-            title="Delete"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
+  if (statusSelect?.value) {
+    updates.status = statusSelect.value;
+    updateCount++;
+  }
+  if (prioritySelect?.value) {
+    updates.priority = prioritySelect.value;
+    updateCount++;
+  }
+  if (associationSelect?.value) {
+    updates.association = associationSelect.value;
+    updateCount++;
+  }
+  if (assignInput?.value.trim()) {
+    updates.assignedTo = assignInput.value.trim();
+    updateCount++;
+  }
 
-function downloadAttachment(data, filename) {
-  const link = document.createElement('a');
-  link.href = data;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
+  if (updateCount === 0) {
+    showToast("Please select at least one change to apply", "error");
+    return;
+  }
 
-function deleteAttachment(attachmentId) {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-  if (!confirm("Delete this file?")) return;
+  updates.updated = new Date().toISOString();
 
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+  const promises = [];
+  LJ_STATE.selectedItems.forEach(itemId => {
+    const [type, key] = itemId.split(":");
+    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+    promises.push(LJ_STATE.db.ref(`${path}/${key}`).update(updates));
+  });
 
-  LJ_STATE.db.ref(`${path}/${id}/attachments/${attachmentId}`).remove()
+  Promise.all(promises)
     .then(() => {
-      showToast("File deleted", "success");
-      addHistoryEntry("file_deleted", "File was deleted");
+      showToast(`Updated ${LJ_STATE.selectedItems.size} items successfully!`, "success");
+      
+      // Reset selects
+      if (statusSelect) statusSelect.value = "";
+      if (prioritySelect) prioritySelect.value = "";
+      if (associationSelect) associationSelect.value = "";
+      if (assignInput) assignInput.value = "";
+      
+      clearBulkSelection();
     })
-    .catch((err) => {
-      console.error("Error deleting file:", err);
-      showToast("Error deleting file", "error");
+    .catch(err => {
+      console.error("Error applying bulk changes:", err);
+      showToast("Error updating items", "error");
     });
 }
 
-// Make functions available globally
-window.downloadAttachment = downloadAttachment;
-window.deleteAttachment = deleteAttachment;
-
-// ---------- Email Notifications ----------
-
-function sendEmailNotification(eventType, message) {
-  // Get notification settings
-  const notifyOnComment = document.getElementById("notifyOnComment")?.checked ?? true;
-  const notifyOnStatusChange = document.getElementById("notifyOnStatusChange")?.checked ?? true;
-  const notifyEmail = document.getElementById("notifyEmail")?.value || window.currentUser?.email;
-
-  // Check if we should notify for this event
-  if (eventType === "comment_added" && !notifyOnComment) return;
-  if (eventType === "status_changed" && !notifyOnStatusChange) return;
-  if (!notifyEmail) return;
-
-  const { title, referenceNumber, type } = LJ_STATE.currentItem || {};
-
-  // Prepare email data
-  const emailData = {
-    to: notifyEmail,
-    subject: `[${referenceNumber}] ${title}`,
-    body: message,
-    itemType: type,
-    itemId: LJ_STATE.currentItem?.id,
-    timestamp: Date.now(),
-  };
-
-  // Store notification request in Firebase (for your backend to process)
-  if (LJ_STATE.db) {
-    LJ_STATE.db.ref('notifications').push(emailData)
-      .then(() => {
-        console.log("📧 Email notification queued:", emailData);
-      })
-      .catch((err) => {
-        console.error("Error queueing notification:", err);
-      });
+function exportSelectedItems() {
+  if (LJ_STATE.selectedItems.size === 0) {
+    showToast("No items selected", "error");
+    return;
   }
 
-  // Show toast
-  showToast("Email notification sent!", "info");
+  const selectedData = [];
+  LJ_STATE.selectedItems.forEach(itemId => {
+    const [type, key] = itemId.split(":");
+    let item;
+    if (type === "ticket") item = LJ_STATE.tickets[key];
+    else if (type === "workOrder") item = LJ_STATE.workOrders[key];
+    else if (type === "violation") item = LJ_STATE.violations[key];
+    
+    if (item) {
+      selectedData.push({ ...item, type });
+    }
+  });
+
+  exportToCSV(selectedData, `bulk_export_${Date.now()}.csv`);
+  showToast(`Exported ${selectedData.length} items`, "success");
 }
 
-// ---------- Export to CSV ----------
+function deleteSelectedItems() {
+  if (LJ_STATE.selectedItems.size === 0) {
+    showToast("No items selected", "error");
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to delete ${LJ_STATE.selectedItems.size} items? This cannot be undone.`)) {
+    return;
+  }
+
+  const promises = [];
+  LJ_STATE.selectedItems.forEach(itemId => {
+    const [type, key] = itemId.split(":");
+    const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
+    promises.push(LJ_STATE.db.ref(`${path}/${key}`).remove());
+  });
+
+  Promise.all(promises)
+    .then(() => {
+      showToast(`Deleted ${LJ_STATE.selectedItems.size} items successfully!`, "success");
+      clearBulkSelection();
+    })
+    .catch(err => {
+      console.error("Error deleting items:", err);
+      showToast("Error deleting items", "error");
+    });
+}
+
+function getCurrentActiveView() {
+  const views = document.querySelectorAll("[data-dashboard-view]");
+  for (const view of views) {
+    if (!view.classList.contains("hidden")) {
+      return view.dataset.dashboardView;
+    }
+  }
+  return "main";
+}
+
+// ---------- Export ----------
 
 function initExport() {
-  // Export current view button
-  const exportViewBtn = document.getElementById("exportCurrentViewBtn");
-  if (exportViewBtn) {
-    exportViewBtn.addEventListener("click", () => {
-      exportCurrentView();
-    });
-  }
-
-  // Export from modal button
-  const exportCsvBtn = document.getElementById("exportCsvBtn");
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener("click", () => {
-      if (LJ_STATE.currentItem) {
-        exportSingleItem(LJ_STATE.currentItem);
-      }
-    });
+  const exportBtn = document.getElementById("exportCurrentViewBtn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", handleExportCurrentView);
   }
 }
 
-function exportCurrentView() {
-  const ticketsArray = objToArray(LJ_STATE.tickets);
-  const workOrdersArray = objToArray(LJ_STATE.workOrders);
-  const violationsArray = objToArray(LJ_STATE.violations);
-  const allItems = [...ticketsArray, ...workOrdersArray, ...violationsArray];
-
-  // Apply current filters
-  const filtered = applyFilters(allItems);
-
-  if (!filtered.length) {
-    showToast("No items to export", "info");
+function handleExportCurrentView() {
+  const items = getFilteredItems();
+  if (items.length === 0) {
+    showToast("No items to export", "error");
     return;
   }
 
-  exportToCSV(filtered, "LJ_Services_Export");
-}
-
-function exportSingleItem(item) {
-  exportToCSV([item], `${item.referenceNumber || 'Item'}_Export`);
+  const view = getCurrentActiveView();
+  exportToCSV(items, `${view}_export_${Date.now()}.csv`);
+  showToast(`Exported ${items.length} items`, "success");
 }
 
 function exportToCSV(items, filename) {
-  // Define CSV headers
-  const headers = [
-    "Reference Number",
-    "Title",
-    "Type",
-    "Association",
-    "Status",
-    "Priority",
-    "Vendor",
-    "Rule Broken",
-    "Description",
-    "Created",
-    "Created By",
-    "Assigned To",
-  ];
+  if (!items.length) return;
 
-  // Convert items to CSV rows
-  const rows = items.map(item => {
-    const type = item.dashboard?.includes("Work Order") ? "Work Order" :
-                 item.dashboard?.includes("Violation") ? "Violation" : "Ticket";
-
-    return [
-      item.referenceNumber || "",
-      item.title || "",
-      type,
-      item.association || "",
-      item.status || "",
-      item.priority || "",
-      item.vendor || "",
-      item.ruleBroken || "",
-      (item.description || "").replace(/"/g, '""'), // Escape quotes
-      item.createdAt || "",
-      item.createdBy || "",
-      item.assignedTo || "",
-    ];
-  });
-
-  // Build CSV content
-  let csv = headers.join(",") + "\n";
-  rows.forEach(row => {
-    csv += row.map(cell => `"${cell}"`).join(",") + "\n";
-  });
-
-  // Create download link
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-
-  link.setAttribute("href", url);
-  link.setAttribute("download", `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
-  link.style.visibility = "hidden";
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  showToast(`Exported ${items.length} items to CSV`, "success");
-}
-
-// ---------- Drawer Management ----------
-
-function initDrawers() {
-  const backdrop = document.getElementById("drawerBackdrop");
-  
-  initSingleDrawer("ticket", "ticketDrawer", "ticketForm", createTicket);
-  initSingleDrawer("workOrder", "workOrderDrawer", "workOrderForm", createWorkOrder);
-  initSingleDrawer("violation", "violationDrawer", "violationForm", createViolation);
-
-  if (backdrop) {
-    backdrop.addEventListener("click", closeAllDrawers);
-  }
-}
-
-function initSingleDrawer(type, drawerId, formId, submitHandler) {
-  const drawer = document.getElementById(drawerId);
-  const form = document.getElementById(formId);
-  const openButtons = document.querySelectorAll(`[data-open-drawer="${type}"]`);
-  const closeButtons = drawer?.querySelectorAll("[data-close-drawer]");
-
-  if (!drawer || !form) return;
-
-  openButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      closeAllDrawers();
-      closeModal();
-      form.reset();
-      openDrawer(drawer);
-    });
-  });
-
-  closeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => closeDrawer(drawer));
-  });
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    submitHandler(form)
-      .then(() => {
-        closeDrawer(drawer);
-        form.reset();
-        showToast("Created successfully!", "success");
-      })
-      .catch((err) => {
-        console.error("Error:", err);
-        showToast("Error creating item", "error");
-      });
-  });
-}
-
-function openDrawer(drawer) {
-  const backdrop = document.getElementById("drawerBackdrop");
-  drawer.classList.remove("drawer-enter");
-  drawer.classList.add("drawer-open");
-  if (backdrop) {
-    backdrop.classList.remove("pointer-events-none", "opacity-0");
-    backdrop.classList.add("opacity-100");
-  }
-}
-
-function closeDrawer(drawer) {
-  drawer.classList.remove("drawer-open");
-  drawer.classList.add("drawer-enter");
-  
-  setTimeout(() => {
-    const anyOpen = document.querySelector(".drawer-open");
-    if (!anyOpen) {
-      const backdrop = document.getElementById("drawerBackdrop");
-      if (backdrop) {
-        backdrop.classList.add("pointer-events-none", "opacity-0");
-        backdrop.classList.remove("opacity-100");
+  // Get all unique keys
+  const keys = new Set();
+  items.forEach(item => {
+    Object.keys(item).forEach(key => {
+      if (key !== "comments" && key !== "attachments" && key !== "history") {
+        keys.add(key);
       }
-    }
-  }, 100);
-}
-
-function closeAllDrawers() {
-  ["ticketDrawer", "workOrderDrawer", "violationDrawer"].forEach((id) => {
-    const drawer = document.getElementById(id);
-    if (drawer) {
-      drawer.classList.remove("drawer-open");
-      drawer.classList.add("drawer-enter");
-    }
-  });
-
-  const backdrop = document.getElementById("drawerBackdrop");
-  if (backdrop) {
-    backdrop.classList.add("pointer-events-none", "opacity-0");
-    backdrop.classList.remove("opacity-100");
-  }
-}
-
-// ---------- Modal Management ----------
-
-function initModal() {
-  const modal = document.getElementById("itemModal");
-  const backdrop = document.getElementById("modalBackdrop");
-  const closeButtons = document.querySelectorAll("[data-close-modal]");
-
-  if (!modal || !backdrop) return;
-
-  closeButtons.forEach((btn) => {
-    btn.addEventListener("click", closeModal);
-  });
-
-  backdrop.addEventListener("click", closeModal);
-
-  // Status update
-  const statusSelect = document.getElementById("modalStatus");
-  if (statusSelect) {
-    statusSelect.addEventListener("change", (e) => {
-      updateItemStatus(e.target.value);
     });
-  }
-
-  // Comment form
-  const commentForm = document.getElementById("commentForm");
-  if (commentForm) {
-    commentForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      addComment();
-    });
-  }
-
-  // Close button
-  const closeBtn = document.getElementById("closeItemBtn");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => updateItemStatus("Closed"));
-  }
-
-  // Delete button
-  const deleteBtn = document.getElementById("deleteItemBtn");
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", deleteItem);
-  }
-}
-
-function openModal(item, type) {
-  const modal = document.getElementById("itemModal");
-  const backdrop = document.getElementById("modalBackdrop");
-  
-  if (!modal || !backdrop) return;
-
-  LJ_STATE.currentItem = { ...item, type };
-  
-  // Populate modal
-  document.getElementById("modalTitle").textContent = item.title || "Untitled";
-  document.getElementById("modalRefNumber").textContent = item.referenceNumber || item.id;
-  document.getElementById("modalAssociation").textContent = item.association || "–";
-  document.getElementById("modalStatus").value = item.status || "Open";
-  document.getElementById("modalPriority").textContent = item.priority || "–";
-  document.getElementById("modalCreated").textContent = item.createdAt 
-    ? new Date(item.createdAt).toLocaleString() 
-    : "–";
-  document.getElementById("modalDescription").textContent = item.description || "No description.";
-
-  // Type-specific fields
-  const vendorSection = document.getElementById("modalVendorSection");
-  const violationSection = document.getElementById("modalViolationSection");
-
-  if (vendorSection) vendorSection.classList.add("hidden");
-  if (violationSection) violationSection.classList.add("hidden");
-
-  if (type === "workOrder" && vendorSection) {
-    vendorSection.classList.remove("hidden");
-    document.getElementById("modalVendor").textContent = item.vendor || "–";
-    document.getElementById("modalEstimatedCost").textContent = item.estimatedCost || "–";
-  } else if (type === "violation" && violationSection) {
-    violationSection.classList.remove("hidden");
-    document.getElementById("modalRuleBroken").textContent = item.ruleBroken || "–";
-    document.getElementById("modalNoticeStep").textContent = item.noticeStep || "–";
-  }
-
-  // Load comments and history
-  loadComments();
-  loadHistory();
-  loadAttachments();
-
-  // Set email notification settings
-  const notifyEmailInput = document.getElementById("notifyEmail");
-  if (notifyEmailInput) {
-    notifyEmailInput.value = item.notifyEmail || window.currentUser?.email || "";
-  }
-
-  // Show modal
-  modal.classList.remove("modal-enter");
-  modal.classList.add("modal-open");
-  modal.classList.remove("pointer-events-none");
-  backdrop.classList.remove("pointer-events-none", "opacity-0");
-  backdrop.classList.add("opacity-100");
-}
-
-function closeModal() {
-  const modal = document.getElementById("itemModal");
-  const backdrop = document.getElementById("modalBackdrop");
-  
-  if (!modal || !backdrop) return;
-
-  modal.classList.remove("modal-open");
-  modal.classList.add("modal-enter");
-  modal.classList.add("pointer-events-none");
-  backdrop.classList.add("pointer-events-none", "opacity-0");
-  backdrop.classList.remove("opacity-100");
-
-  LJ_STATE.currentItem = null;
-}
-
-// ---------- Comments System ----------
-
-function loadComments() {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  LJ_STATE.db.ref(`${path}/${id}/comments`).on("value", (snap) => {
-    const comments = snap.val() || {};
-    renderComments(comments);
   });
-}
 
-function renderComments(comments) {
-  const container = document.getElementById("commentsList");
-  if (!container) return;
-
-  const commentsArray = Object.values(comments).sort((a, b) => 
-    (b.timestamp || 0) - (a.timestamp || 0)
+  const headers = Array.from(keys);
+  const rows = items.map(item => 
+    headers.map(key => {
+      const value = item[key];
+      if (value === null || value === undefined) return "";
+      if (typeof value === "string" && value.includes(",")) return `"${value}"`;
+      return value;
+    })
   );
 
-  if (!commentsArray.length) {
-    container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No comments yet. Add the first one!</p>';
-    return;
-  }
+  const csv = [
+    headers.join(","),
+    ...rows.map(row => row.join(","))
+  ].join("\n");
 
-  container.innerHTML = commentsArray.map((comment) => {
-    const initial = (comment.author || "U").charAt(0).toUpperCase();
-    const timeStr = comment.timestamp ? new Date(comment.timestamp).toLocaleString() : "";
-    
-    return `
-      <div class="flex gap-3">
-        <div class="flex-shrink-0">
-          <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-            <span class="text-xs font-semibold text-indigo-700">${initial}</span>
-          </div>
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-slate-900">${escapeHtml(comment.author || "Unknown")}</span>
-            <span class="text-[10px] text-slate-400">${timeStr}</span>
-          </div>
-          <p class="text-sm text-slate-700 mt-1">${escapeHtml(comment.text || "")}</p>
-        </div>
-      </div>
-    `;
-  }).join("");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
 }
 
-function addComment() {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const textarea = document.getElementById("commentInput");
-  const text = textarea.value.trim();
-
-  if (!text) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  const comment = {
-    text,
-    author: window.currentUser?.name || "User",
-    authorEmail: window.currentUser?.email || "",
-    timestamp: Date.now(),
-  };
-
-  const commentId = `comment-${Date.now()}`;
-
-  LJ_STATE.db.ref(`${path}/${id}/comments/${commentId}`).set(comment)
-    .then(() => {
-      textarea.value = "";
-      addHistoryEntry("comment_added", `Comment added by ${comment.author}`);
-      sendEmailNotification("comment_added", `${comment.author} commented: "${comment.text}"`);
-      showToast("Comment added!", "success");
-    })
-    .catch((err) => {
-      console.error("Error adding comment:", err);
-      showToast("Error adding comment", "error");
-    });
-}
-
-// ---------- Status Updates ----------
-
-function updateItemStatus(newStatus) {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const { id, type, status: oldStatus } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  LJ_STATE.db.ref(`${path}/${id}`).update({
-    status: newStatus,
-    lastUpdated: Date.now(),
-  })
-  .then(() => {
-    LJ_STATE.currentItem.status = newStatus;
-    addHistoryEntry("status_changed", `Status changed from "${oldStatus}" to "${newStatus}"`);
-    sendEmailNotification("status_changed", `Status changed from "${oldStatus}" to "${newStatus}"`);
-    showToast(`Status updated to ${newStatus}`, "success");
-  })
-  .catch((err) => {
-    console.error("Error updating status:", err);
-    showToast("Error updating status", "error");
-  });
-}
-
-// ---------- History Timeline ----------
-
-function loadHistory() {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  LJ_STATE.db.ref(`${path}/${id}/history`).on("value", (snap) => {
-    const history = snap.val() || {};
-    renderHistory(history);
-  });
-}
-
-function renderHistory(history) {
-  const container = document.getElementById("historyList");
-  if (!container) return;
-
-  const historyArray = Object.values(history).sort((a, b) => 
-    (b.timestamp || 0) - (a.timestamp || 0)
-  );
-
-  if (!historyArray.length) {
-    container.innerHTML = '<p class="text-slate-400 text-center py-4">No history yet.</p>';
-    return;
-  }
-
-  container.innerHTML = historyArray.map((entry) => {
-    const icon = entry.action === "status_changed" ? "🔄" :
-                 entry.action === "comment_added" ? "💬" :
-                 entry.action === "created" ? "✨" :
-                 entry.action === "file_uploaded" ? "📎" :
-                 entry.action === "file_deleted" ? "🗑️" : "📝";
-
-    const timeStr = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "";
-
-    return `
-      <div class="flex gap-2">
-        <div class="text-base">${icon}</div>
-        <div class="flex-1 min-w-0">
-          <p class="text-slate-700">${escapeHtml(entry.description || "")}</p>
-          <p class="text-[10px] text-slate-400 mt-0.5">${timeStr}</p>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-function addHistoryEntry(action, description) {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  const entry = {
-    action,
-    description,
-    user: window.currentUser?.name || "User",
-    timestamp: Date.now(),
-  };
-
-  const entryId = `history-${Date.now()}`;
-  LJ_STATE.db.ref(`${path}/${id}/history/${entryId}`).set(entry);
-}
-
-// ---------- Delete Item ----------
-
-function deleteItem() {
-  if (!LJ_STATE.currentItem || !LJ_STATE.db) return;
-
-  if (!confirm("Delete this item? This cannot be undone.")) return;
-
-  const { id, type } = LJ_STATE.currentItem;
-  const path = type === "ticket" ? "tickets" : type === "workOrder" ? "workOrders" : "violations";
-
-  LJ_STATE.db.ref(`${path}/${id}`).remove()
-    .then(() => {
-      closeModal();
-      showToast("Item deleted", "success");
-    })
-    .catch((err) => {
-      console.error("Error deleting:", err);
-      showToast("Error deleting item", "error");
-    });
-}
-
-// ---------- Create Functions ----------
-
-function createTicket(form) {
-  if (!LJ_STATE.db) return Promise.reject(new Error("DB not ready"));
-
-  const get = (name) => (form.elements[name] ? form.elements[name].value.trim() : "");
-  const now = new Date();
-  const id = `TKT-${Date.now()}`;
-  const refNum = `TKT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`;
-
-  const ticket = {
-    id,
-    referenceNumber: refNum,
-    title: get("title"),
-    association: get("association"),
-    priority: get("priority") || "Medium",
-    status: "Open",
-    description: get("description"),
-    createdAt: now.toISOString(),
-    createdAtMillis: now.getTime(),
-    createdBy: window.currentUser?.email || "system",
-    history: {
-      "initial": {
-        action: "created",
-        description: `Ticket created by ${window.currentUser?.name || "User"}`,
-        user: window.currentUser?.name || "User",
-        timestamp: now.getTime(),
-      }
-    }
-  };
-
-  return LJ_STATE.db.ref(`tickets/${id}`).set(ticket);
-}
-
-function createWorkOrder(form) {
-  if (!LJ_STATE.db) return Promise.reject(new Error("DB not ready"));
-
-  const get = (name) => (form.elements[name] ? form.elements[name].value.trim() : "");
-  const now = new Date();
-  const id = `WO-${Date.now()}`;
-  const refNum = `WO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`;
-
-  const workOrder = {
-    id,
-    referenceNumber: refNum,
-    title: get("title"),
-    association: get("association"),
-    vendor: get("vendor"),
-    estimatedCost: get("estimatedCost"),
-    status: "Open",
-    description: get("description"),
-    createdAt: now.toISOString(),
-    createdAtMillis: now.getTime(),
-    createdBy: window.currentUser?.email || "system",
-    history: {
-      "initial": {
-        action: "created",
-        description: `Work order created by ${window.currentUser?.name || "User"}`,
-        user: window.currentUser?.name || "User",
-        timestamp: now.getTime(),
-      }
-    }
-  };
-
-  return LJ_STATE.db.ref(`workOrders/${id}`).set(workOrder);
-}
-
-function createViolation(form) {
-  if (!LJ_STATE.db) return Promise.reject(new Error("DB not ready"));
-
-  const get = (name) => (form.elements[name] ? form.elements[name].value.trim() : "");
-  const now = new Date();
-  const id = `VIO-${Date.now()}`;
-  const refNum = `VIO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`;
-
-  const violation = {
-    id,
-    referenceNumber: refNum,
-    title: get("title"),
-    association: get("association"),
-    ruleBroken: get("ruleBroken"),
-    noticeStep: get("noticeStep") || "1st Notice",
-    status: "Open",
-    description: get("description"),
-    createdAt: now.toISOString(),
-    createdAtMillis: now.getTime(),
-    createdBy: window.currentUser?.email || "system",
-    history: {
-      "initial": {
-        action: "created",
-        description: `Violation created by ${window.currentUser?.name || "User"}`,
-        user: window.currentUser?.name || "User",
-        timestamp: now.getTime(),
-      }
-    }
-  };
-
-  return LJ_STATE.db.ref(`violations/${id}`).set(violation);
-}
-
-// ---------- Firebase Listeners ----------
+// ---------- Realtime Listeners ----------
 
 function initRealtimeListeners() {
-  if (!LJ_STATE.db) return;
-
-  LJ_STATE.db.ref("tickets").on("value", (snap) => {
-    LJ_STATE.tickets = snap.val() || {};
-    renderAll();
+  LJ_STATE.db.ref("tickets").on("value", snapshot => {
+    LJ_STATE.tickets = snapshot.val() || {};
+    renderCurrentView();
+    updateStats();
   });
 
-  LJ_STATE.db.ref("workOrders").on("value", (snap) => {
-    LJ_STATE.workOrders = snap.val() || {};
-    renderAll();
+  LJ_STATE.db.ref("workOrders").on("value", snapshot => {
+    LJ_STATE.workOrders = snapshot.val() || {};
+    renderCurrentView();
+    updateStats();
   });
 
-  LJ_STATE.db.ref("violations").on("value", (snap) => {
-    LJ_STATE.violations = snap.val() || {};
-    renderAll();
+  LJ_STATE.db.ref("violations").on("value", snapshot => {
+    LJ_STATE.violations = snapshot.val() || {};
+    renderCurrentView();
+    updateStats();
   });
 }
 
 // ---------- Rendering ----------
 
-function renderAll() {
-  renderStatCards();
-  renderRecentActivity();
-  renderTables();
-  updateResultsCount();
+function renderCurrentView() {
+  const activeView = getCurrentActiveView();
+  
+  if (activeView === "main") renderOverview();
+  else if (activeView === "tickets") renderTicketsDashboard();
+  else if (activeView === "workOrders") renderWorkOrdersDashboard();
+  else if (activeView === "violations") renderViolationsDashboard();
+  
+  updateSearchResults();
 }
 
-function renderStatCards() {
-  const ticketsArray = objToArray(LJ_STATE.tickets);
-  const workOrdersArray = objToArray(LJ_STATE.workOrders);
-  const violationsArray = objToArray(LJ_STATE.violations);
-  const allItems = [...ticketsArray, ...workOrdersArray, ...violationsArray];
+function getFilteredItems() {
+  let allItems = [];
+  
+  // Collect all items
+  Object.entries(LJ_STATE.tickets).forEach(([key, item]) => {
+    allItems.push({ ...item, id: `ticket:${key}`, key, type: "ticket" });
+  });
+  Object.entries(LJ_STATE.workOrders).forEach(([key, item]) => {
+    allItems.push({ ...item, id: `workOrder:${key}`, key, type: "workOrder" });
+  });
+  Object.entries(LJ_STATE.violations).forEach(([key, item]) => {
+    allItems.push({ ...item, id: `violation:${key}`, key, type: "violation" });
+  });
 
-  const total = allItems.length;
-  const openCount = allItems.filter(t => (t.status || "").toLowerCase() !== "closed").length;
-
-  document.getElementById("totalTicketsCard").textContent = String(total);
-  document.getElementById("openTicketsCard").textContent = String(openCount);
-  document.getElementById("totalWorkOrdersCard").textContent = String(workOrdersArray.length);
-  document.getElementById("totalViolationsCard").textContent = String(violationsArray.length);
-}
-
-function renderRecentActivity() {
-  const container = document.getElementById("recentActivityList");
-  if (!container) return;
-
-  const items = [
-    ...objToArray(LJ_STATE.tickets).map(t => ({ ...t, source: "Ticket", type: "ticket" })),
-    ...objToArray(LJ_STATE.workOrders).map(t => ({ ...t, source: "Work Order", type: "workOrder" })),
-    ...objToArray(LJ_STATE.violations).map(t => ({ ...t, source: "Violation", type: "violation" })),
-  ];
-
-  if (!items.length) {
-    container.innerHTML = '<p class="text-xs text-slate-400 py-4 text-center">No activity yet.</p>';
-    return;
+  // Apply status filter
+  if (LJ_STATE.filterStatus !== "all") {
+    allItems = allItems.filter(item => 
+      item.status?.toLowerCase() === LJ_STATE.filterStatus.toLowerCase()
+    );
   }
 
-  items.sort((a, b) => (b.createdAtMillis || 0) - (a.createdAtMillis || 0));
-  const latest = items.slice(0, 10);
+  // Apply search filter
+  if (LJ_STATE.searchQuery) {
+    allItems = allItems.filter(item => {
+      const searchStr = [
+        item.title,
+        item.association,
+        item.vendor,
+        item.referenceNumber,
+        item.description,
+        item.ruleBroken
+      ].filter(Boolean).join(" ").toLowerCase();
+      
+      return searchStr.includes(LJ_STATE.searchQuery);
+    });
+  }
 
-  container.innerHTML = latest.map(item => {
-    const badgeClass = item.source === "Work Order" ? "bg-amber-50 text-amber-700" :
-                       item.source === "Violation" ? "bg-rose-50 text-rose-700" :
-                       "bg-indigo-50 text-indigo-700";
-
-    return `
-      <div class="py-2.5 cursor-pointer hover:bg-slate-50 -mx-5 px-5" onclick='openModal(${JSON.stringify(item)}, "${item.type}")'>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClass}">
-            ${escapeHtml(item.source)}
-          </span>
-          <span class="text-xs text-slate-400">${escapeHtml(item.referenceNumber || "")}</span>
-        </div>
-        <p class="text-sm font-medium text-slate-900">${escapeHtml(item.title || "")}</p>
-        <p class="text-xs text-slate-500">${escapeHtml(item.association || "")}</p>
-      </div>
-    `;
-  }).join("");
+  return allItems;
 }
 
-function renderTables() {
-  renderSimpleTable("ticketsTableBody", objToArray(LJ_STATE.tickets), "ticket");
-  renderSimpleTable("workOrdersTableBody", objToArray(LJ_STATE.workOrders), "workOrder");
-  renderSimpleTable("violationsTableBody", objToArray(LJ_STATE.violations), "violation");
-}
-
-function renderSimpleTable(tbodyId, items, type) {
-  const tbody = document.getElementById(tbodyId);
+function renderOverview() {
+  const tbody = document.getElementById("overviewTableBody");
   if (!tbody) return;
 
-  // Apply filters
-  const filtered = applyFilters(items);
+  const items = getFilteredItems();
+  items.sort((a, b) => new Date(b.created) - new Date(a.created));
 
-  if (!filtered.length) {
-    const message = (LJ_STATE.searchQuery || LJ_STATE.filterStatus !== "all")
-      ? `No ${type}s match your filters. Try adjusting your search or filters.`
-      : `No ${type}s yet.`;
-    
-    tbody.innerHTML = `<tr><td colspan="5" class="px-3 py-4 text-center text-xs text-slate-400">${message}</td></tr>`;
-    return;
-  }
-
-  // Sort by date (newest first)
-  filtered.sort((a, b) => (b.createdAtMillis || 0) - (a.createdAtMillis || 0));
-
-  tbody.innerHTML = filtered.map(item => {
-    const statusClass = (item.status || "").toLowerCase() === "closed" ? "bg-emerald-50 text-emerald-700" :
-                        (item.status || "").toLowerCase() === "in progress" ? "bg-amber-50 text-amber-700" :
-                        "bg-sky-50 text-sky-700";
-
-    const thirdColumn = type === "workOrder" ? escapeHtml(item.vendor || "–") :
-                        type === "violation" ? escapeHtml(item.ruleBroken || "–") :
-                        `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] bg-slate-50 text-slate-600">
-                           ${escapeHtml(item.priority || "–")}
-                         </span>`;
-
-    // Highlight search matches
-    let titleDisplay = escapeHtml(item.title || "");
-    if (LJ_STATE.searchQuery && item.title) {
-      const regex = new RegExp(`(${LJ_STATE.searchQuery})`, 'gi');
-      titleDisplay = escapeHtml(item.title).replace(regex, '<mark class="bg-yellow-200">$1</mark>');
-    }
-
-    return `
-      <tr class="hover:bg-slate-50 cursor-pointer" onclick='openModal(${JSON.stringify(item)}, "${type}")'>
-        <td class="px-3 py-2">
-          <p class="text-sm font-medium text-slate-900">${titleDisplay}</p>
-          <p class="text-[11px] text-slate-400">${escapeHtml(item.referenceNumber || "")}</p>
-        </td>
-        <td class="px-3 py-2 text-xs text-slate-600">${escapeHtml(item.association || "")}</td>
-        <td class="px-3 py-2 text-xs">${thirdColumn}</td>
-        <td class="px-3 py-2">
-          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${statusClass}">
-            ${escapeHtml(item.status || "")}
-          </span>
-        </td>
-        <td class="px-3 py-2 text-right">
-          <button 
-            onclick="event.stopPropagation(); openModal(${JSON.stringify(item)}, '${type}')"
-            class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-100"
-          >
-            View
-          </button>
+  if (items.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+          No items found matching your filters.
         </td>
       </tr>
     `;
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    const isSelected = LJ_STATE.selectedItems.has(item.id);
+    return `
+      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
+        <td class="px-4 py-3" onclick="event.stopPropagation()">
+          <input 
+            type="checkbox" 
+            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+            data-item-id="${item.id}"
+            ${isSelected ? 'checked' : ''}
+          />
+        </td>
+        <td class="px-4 py-3">
+          ${getTypeBadge(item.type)}
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
+        <td class="px-4 py-3 text-slate-600">${item.association}</td>
+        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
+        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
+      </tr>
+    `;
   }).join("");
+
+  // Add click handlers
+  attachTableRowHandlers("overviewTableBody", items);
+}
+
+function renderTicketsDashboard() {
+  const tbody = document.getElementById("ticketsTableBody");
+  if (!tbody) return;
+
+  const tickets = Object.entries(LJ_STATE.tickets)
+    .map(([key, item]) => ({ ...item, id: `ticket:${key}`, key, type: "ticket" }))
+    .filter(item => matchesFilters(item));
+
+  tickets.sort((a, b) => new Date(b.created) - new Date(a.created));
+
+  if (tickets.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+          No tickets found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = tickets.map(item => {
+    const isSelected = LJ_STATE.selectedItems.has(item.id);
+    return `
+      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
+        <td class="px-4 py-3" onclick="event.stopPropagation()">
+          <input 
+            type="checkbox" 
+            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+            data-item-id="${item.id}"
+            ${isSelected ? 'checked' : ''}
+          />
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
+        <td class="px-4 py-3 text-slate-600">${item.association}</td>
+        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
+        <td class="px-4 py-3">${getPriorityBadge(item.priority)}</td>
+        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  attachTableRowHandlers("ticketsTableBody", tickets);
+}
+
+function renderWorkOrdersDashboard() {
+  const tbody = document.getElementById("workOrdersTableBody");
+  if (!tbody) return;
+
+  const workOrders = Object.entries(LJ_STATE.workOrders)
+    .map(([key, item]) => ({ ...item, id: `workOrder:${key}`, key, type: "workOrder" }))
+    .filter(item => matchesFilters(item));
+
+  workOrders.sort((a, b) => new Date(b.created) - new Date(a.created));
+
+  if (workOrders.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+          No work orders found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = workOrders.map(item => {
+    const isSelected = LJ_STATE.selectedItems.has(item.id);
+    return `
+      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
+        <td class="px-4 py-3" onclick="event.stopPropagation()">
+          <input 
+            type="checkbox" 
+            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+            data-item-id="${item.id}"
+            ${isSelected ? 'checked' : ''}
+          />
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
+        <td class="px-4 py-3 text-slate-600">${item.association}</td>
+        <td class="px-4 py-3 text-slate-600">${item.vendor || "N/A"}</td>
+        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
+        <td class="px-4 py-3 text-slate-900">${item.estimatedCost ? "$" + parseFloat(item.estimatedCost).toLocaleString() : "N/A"}</td>
+        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  attachTableRowHandlers("workOrdersTableBody", workOrders);
+}
+
+function renderViolationsDashboard() {
+  const tbody = document.getElementById("violationsTableBody");
+  if (!tbody) return;
+
+  const violations = Object.entries(LJ_STATE.violations)
+    .map(([key, item]) => ({ ...item, id: `violation:${key}`, key, type: "violation" }))
+    .filter(item => matchesFilters(item));
+
+  violations.sort((a, b) => new Date(b.created) - new Date(a.created));
+
+  if (violations.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+          No violations found.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = violations.map(item => {
+    const isSelected = LJ_STATE.selectedItems.has(item.id);
+    return `
+      <tr class="item-row hover:bg-slate-50 cursor-pointer ${isSelected ? 'selected' : ''}" data-item-id="${item.id}">
+        <td class="px-4 py-3" onclick="event.stopPropagation()">
+          <input 
+            type="checkbox" 
+            class="item-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+            data-item-id="${item.id}"
+            ${isSelected ? 'checked' : ''}
+          />
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900">${item.title}</td>
+        <td class="px-4 py-3 text-slate-600">${item.association}</td>
+        <td class="px-4 py-3 text-slate-600">${item.ruleBroken || "N/A"}</td>
+        <td class="px-4 py-3">${getNoticeBadge(item.noticeStep)}</td>
+        <td class="px-4 py-3">${getStatusBadge(item.status)}</td>
+        <td class="px-4 py-3 text-slate-500">${formatDate(item.created)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  attachTableRowHandlers("violationsTableBody", violations);
+}
+
+function attachTableRowHandlers(tbodyId, items) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+
+  // Row click to open modal
+  const rows = tbody.querySelectorAll("tr[data-item-id]");
+  rows.forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.type === "checkbox") return;
+      const itemId = row.dataset.itemId;
+      const [type, key] = itemId.split(":");
+      openModal(type, key);
+    });
+  });
+
+  // Checkbox change
+  const checkboxes = tbody.querySelectorAll("input[type='checkbox'].item-checkbox");
+  checkboxes.forEach(cb => {
+    cb.addEventListener("change", (e) => {
+      handleItemCheckboxChange(e.target, e.target.dataset.itemId);
+    });
+  });
+}
+
+function matchesFilters(item) {
+  // Status filter
+  if (LJ_STATE.filterStatus !== "all" && item.status?.toLowerCase() !== LJ_STATE.filterStatus.toLowerCase()) {
+    return false;
+  }
+
+  // Search filter
+  if (LJ_STATE.searchQuery) {
+    const searchStr = [
+      item.title,
+      item.association,
+      item.vendor,
+      item.referenceNumber,
+      item.description,
+      item.ruleBroken
+    ].filter(Boolean).join(" ").toLowerCase();
+    
+    if (!searchStr.includes(LJ_STATE.searchQuery)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function updateStats() {
+  const allItems = [
+    ...Object.values(LJ_STATE.tickets),
+    ...Object.values(LJ_STATE.workOrders),
+    ...Object.values(LJ_STATE.violations)
+  ];
+
+  const total = allItems.length;
+  const open = allItems.filter(i => i.status === "open").length;
+  const inProgress = allItems.filter(i => i.status === "in progress").length;
+  const closed = allItems.filter(i => i.status === "closed").length;
+
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statOpen").textContent = open;
+  document.getElementById("statInProgress").textContent = inProgress;
+  document.getElementById("statClosed").textContent = closed;
+}
+
+function updateSearchResults() {
+  const resultEl = document.getElementById("searchResults");
+  if (!resultEl) return;
+
+  const items = getFilteredItems();
+  const total = Object.keys(LJ_STATE.tickets).length + 
+                Object.keys(LJ_STATE.workOrders).length + 
+                Object.keys(LJ_STATE.violations).length;
+
+  if (LJ_STATE.searchQuery || LJ_STATE.filterStatus !== "all") {
+    resultEl.textContent = `Showing ${items.length} of ${total} items`;
+  } else {
+    resultEl.textContent = `${total} total items`;
+  }
+}
+
+// ---------- UI Helper Functions ----------
+
+function getTypeBadge(type) {
+  const badges = {
+    ticket: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-indigo-100 text-indigo-700">Ticket</span>',
+    workOrder: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Work Order</span>',
+    violation: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Violation</span>',
+  };
+  return badges[type] || "";
+}
+
+function getStatusBadge(status) {
+  const badges = {
+    open: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Open</span>',
+    "in progress": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">In Progress</span>',
+    closed: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Closed</span>',
+  };
+  return badges[status?.toLowerCase()] || '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">Unknown</span>';
+}
+
+function getPriorityBadge(priority) {
+  const badges = {
+    low: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700">Low</span>',
+    medium: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">Medium</span>',
+    high: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700">High</span>',
+    urgent: '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Urgent</span>',
+  };
+  return badges[priority?.toLowerCase()] || "";
+}
+
+function getNoticeBadge(step) {
+  const badges = {
+    "1st Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700">1st Notice</span>',
+    "2nd Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700">2nd Notice</span>',
+    "3rd Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-red-100 text-red-700">3rd Notice</span>',
+    "Final Notice": '<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-rose-100 text-rose-700">Final Notice</span>',
+  };
+  return badges[step] || "";
+}
+
+function formatDate(isoString) {
+  if (!isoString) return "N/A";
+  const date = new Date(isoString);
+  const now = new Date();
+  const diff = now - date;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  
+  return date.toLocaleDateString();
+}
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // ---------- Toast Notifications ----------
@@ -1200,28 +1341,15 @@ function showToast(message, type = "info") {
   };
 
   const toast = document.createElement("div");
-  toast.className = `${colors[type]} text-white px-4 py-2 rounded-lg shadow-lg text-sm mb-2`;
+  toast.className = `${colors[type] || colors.info} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium transform transition-all duration-300 translate-y-0 opacity-100`;
   toast.textContent = message;
+
   container.appendChild(toast);
 
-  setTimeout(() => toast.remove(), 3000);
+  setTimeout(() => {
+    toast.classList.add("translate-y-2", "opacity-0");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
-// ---------- Helpers ----------
-
-function objToArray(obj) {
-  if (!obj) return [];
-  return Object.keys(obj).map(key => obj[key]);
-}
-
-function escapeHtml(str) {
-  if (str == null) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// Make openModal available globally
-window.openModal = openModal;
+console.log("✅ LJ Services CRM with Bulk Actions loaded successfully!");
