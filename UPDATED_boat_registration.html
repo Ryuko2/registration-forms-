@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boat Registration - LJ Services Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 min-h-screen py-8">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <!-- Logo -->
+        <div class="text-center mb-6">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b7/32/f7/b732f723-33a3-7d19-2e8c-b6f5d1071b9c/AppIcon-1x_U007emarketing-0-7-85-220-0.png/1200x630wa.png" alt="LJ Services Group" class="max-w-[180px] h-auto mx-auto rounded-xl shadow-lg">
+        </div>
+
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 mb-6 border-t-4 border-teal-500">
+            <h1 class="text-4xl font-bold text-center bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mb-2">🚤 Boat Registration Form</h1>
+            <p class="text-center text-gray-600 text-lg">Register your watercraft with the association</p>
+        </div>
+
+        <!-- Messages -->
+        <div id="successMessage" class="hidden bg-green-50 border-l-4 border-green-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <span class="text-4xl mr-4">✅</span>
+                <div>
+                    <h3 class="font-bold text-green-800 text-lg">Success!</h3>
+                    <p class="text-green-700">Your boat registration has been submitted successfully.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="hidden bg-red-50 border-l-4 border-red-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <span class="text-4xl mr-4">❌</span>
+                <div>
+                    <h3 class="font-bold text-red-800 text-lg">Error</h3>
+                    <p class="text-red-700" id="errorText">There was a problem submitting your form.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingMessage" class="hidden bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
+                <div>
+                    <p class="text-blue-700 font-semibold" id="loadingText">Processing your registration...</p>
+                    <p class="text-blue-600 text-sm mt-1" id="loadingDetails"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="boatForm" class="space-y-6">
+            <!-- Owner Information -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-teal-500">
+                <h2 class="text-2xl font-bold text-teal-700 mb-6 flex items-center">
+                    <span class="bg-teal-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-teal-600">👤</span>
+                    Owner Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Unit Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="unit_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., 101">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Property Owner <span class="text-red-500">*</span></label>
+                        <input type="text" name="property_owner" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="Full name">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Association Name <span class="text-red-500">*</span></label>
+                        <select name="association_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none">
+                            <option value="">Select Association</option>
+                            <option value="Anthony Gardens ANT">Anthony Gardens ANT</option>
+                            <option value="Bayshore Treasure Condominium BTC">Bayshore Treasure Condominium BTC</option>
+                            <option value="Cambridge CAM">Cambridge CAM</option>
+                            <option value="Eastside Condominium EAST">Eastside Condominium EAST</option>
+                            <option value="Enclave Waterside Villas Condominium Association EWVCA">Enclave Waterside Villas Condominium Association EWVCA</option>
+                            <option value="Futura Sansovino Condominium Association, Inc FSCA">Futura Sansovino Condominium Association, Inc FSCA</option>
+                            <option value="Island Point South IPSCA">Island Point South IPSCA</option>
+                            <option value="Michelle Condominium MICH">Michelle Condominium MICH</option>
+                            <option value="Monterrey Condominium Property Association, Inc. MTC">Monterrey Condominium Property Association, Inc. MTC</option>
+                            <option value="Normandy Shores Condominium NORM">Normandy Shores Condominium NORM</option>
+                            <option value="Oxford Gates OX">Oxford Gates OX</option>
+                            <option value="Palms Of Sunset Condominium Association, Inc POSS">Palms Of Sunset Condominium Association, Inc POSS</option>
+                            <option value="Patricia Condominium PAT">Patricia Condominium PAT</option>
+                            <option value="Ritz Royal RITZ">Ritz Royal RITZ</option>
+                            <option value="Sage Condominium SAGE">Sage Condominium SAGE</option>
+                            <option value="The Niche NICHE">The Niche NICHE</option>
+                            <option value="Tower Gates TWG">Tower Gates TWG</option>
+                            <option value="Vizcaya Villas Condominium VVC">Vizcaya Villas Condominium VVC</option>
+                            <option value="Wilton Terrace Condominium WTC">Wilton Terrace Condominium WTC</option>
+                        </select>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Renter (if applicable)</label>
+                        <input type="text" name="renter" 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="Leave blank if owner-occupied">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Watercraft Type -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-cyan-500">
+                <h2 class="text-2xl font-bold text-cyan-700 mb-6 flex items-center">
+                    <span class="bg-cyan-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-cyan-600">⛵</span>
+                    Watercraft Type <span class="text-red-500 ml-2">*</span>
+                </h2>
+                
+                <div class="flex flex-wrap gap-6">
+                    <label class="flex items-center cursor-pointer group">
+                        <input type="radio" name="watercraft_type" value="PWC" required class="w-5 h-5 text-cyan-600 focus:ring-cyan-500">
+                        <span class="ml-3 text-gray-700 group-hover:text-cyan-600 font-medium">PWC (Personal Watercraft)</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer group">
+                        <input type="radio" name="watercraft_type" value="Power Craft" class="w-5 h-5 text-cyan-600 focus:ring-cyan-500">
+                        <span class="ml-3 text-gray-700 group-hover:text-cyan-600 font-medium">Power Craft</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer group">
+                        <input type="radio" name="watercraft_type" value="Non-Power" class="w-5 h-5 text-cyan-600 focus:ring-cyan-500">
+                        <span class="ml-3 text-gray-700 group-hover:text-cyan-600 font-medium">Non-Power</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Boat Information -->
+            <div class="bg-gradient-to-br from-white to-teal-50 rounded-2xl shadow-lg p-8 border-l-4 border-teal-500">
+                <h2 class="text-2xl font-bold text-teal-700 mb-6 flex items-center">
+                    <span class="bg-teal-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-teal-600">🚤</span>
+                    Boat Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Manufacturer <span class="text-red-500">*</span></label>
+                        <input type="text" name="manufacturer" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., Sea Ray, Boston Whaler">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Model <span class="text-red-500">*</span></label>
+                        <input type="text" name="model" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., Sundancer, Montauk">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Year <span class="text-red-500">*</span></label>
+                        <input type="number" name="year" required min="1900" max="2100"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., 2020">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Serial Number (HIN/VIN) <span class="text-red-500">*</span></label>
+                        <input type="text" name="serial_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none uppercase"
+                            placeholder="Hull identification number">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Craft Type</label>
+                        <input type="text" name="craft_type" 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., Runabout, Pontoon">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Construction Material</label>
+                        <input type="text" name="material" 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., Fiberglass, Aluminum">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Length (feet)</label>
+                        <input type="number" name="length" step="0.1"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., 25.5">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Weight (lbs)</label>
+                        <input type="number" name="weight"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., 5000">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Color</label>
+                        <input type="text" name="color" 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="Primary color">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Engine Make</label>
+                        <input type="text" name="engine_make" 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., Mercury, Yamaha">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Engine HP</label>
+                        <input type="number" name="engine_hp"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all outline-none"
+                            placeholder="e.g., 250">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document Upload -->
+            <div class="bg-gradient-to-br from-white to-cyan-50 rounded-2xl shadow-lg p-8 border-l-4 border-cyan-500">
+                <h2 class="text-2xl font-bold text-cyan-700 mb-6 flex items-center">
+                    <span class="bg-cyan-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-cyan-600">📎</span>
+                    Required Documents
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Boat Insurance Document</label>
+                        <input type="file" name="boat_insurance" accept=".pdf,.jpg,.jpeg,.png" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600 cursor-pointer">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Boat Registration Document</label>
+                        <input type="file" name="boat_registration" accept=".pdf,.jpg,.jpeg,.png" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center pt-4">
+                <button type="submit" id="submitBtn"
+                    class="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transform transition-all hover:scale-105 active:scale-95 text-lg">
+                    🚀 Submit Boat Registration
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600 text-sm">
+            <p>© 2025 LJ Services Group. All rights reserved.</p>
+        </div>
+    </div>
+
+<script>
+// ============================================
+// CONFIGURATION - UPDATE THESE VALUES
+// ============================================
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE"; // ⬅️ REPLACE WITH YOUR APPS SCRIPT URL
+const DROPBOX_TOKEN = "YOUR_DROPBOX_TOKEN_HERE"; // ⬅️ REPLACE WITH YOUR DROPBOX TOKEN
+
+// ============================================
+// DROPBOX FILE UPLOAD FUNCTION
+// ============================================
+async function uploadFileToDropbox(file, folderPath, fileName) {
+    const timestamp = Date.now();
+    const safeFileName = `${timestamp}_${fileName}`;
+    const fullPath = `${folderPath}/${safeFileName}`;
+    
+    try {
+        console.log(`Uploading ${fileName} to ${fullPath}`);
+        
+        const uploadResponse = await fetch("https://content.dropboxapi.com/2/files/upload", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${DROPBOX_TOKEN}`,
+                "Dropbox-API-Arg": JSON.stringify({
+                    path: fullPath,
+                    mode: "add",
+                    autorename: true
+                }),
+                "Content-Type": "application/octet-stream"
+            },
+            body: file
+        });
+        
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            console.error("Dropbox upload error:", errorText);
+            throw new Error(`Upload failed (${uploadResponse.status})`);
+        }
+        
+        const uploadData = await uploadResponse.json();
+        console.log("File uploaded successfully:", uploadData.path_display);
+        
+        const linkResponse = await fetch("https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${DROPBOX_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                path: uploadData.path_lower,
+                settings: {
+                    requested_visibility: "public"
+                }
+            })
+        });
+        
+        if (!linkResponse.ok) {
+            const errorData = await linkResponse.json();
+            if (errorData.error && errorData.error['.tag'] === 'shared_link_already_exists') {
+                console.log("Using existing shared link");
+                return errorData.error.shared_link_already_exists.metadata.url.replace("?dl=0", "?raw=1");
+            }
+            throw new Error(`Link creation failed`);
+        }
+        
+        const linkData = await linkResponse.json();
+        const shareableLink = linkData.url.replace("?dl=0", "?raw=1");
+        console.log("Shared link created:", shareableLink);
+        return shareableLink;
+        
+    } catch (error) {
+        console.error(`Error uploading ${fileName}:`, error);
+        throw error;
+    }
+}
+
+// ============================================
+// FORM SUBMISSION
+// ============================================
+document.getElementById("boatForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const submitBtn = document.getElementById("submitBtn");
+    const successMsg = document.getElementById("successMessage");
+    const errorMsg = document.getElementById("errorMessage");
+    const loadingMsg = document.getElementById("loadingMessage");
+    const errorText = document.getElementById("errorText");
+    const loadingText = document.getElementById("loadingText");
+    const loadingDetails = document.getElementById("loadingDetails");
+    
+    submitBtn.disabled = true;
+    submitBtn.innerText = "⏳ Processing...";
+    successMsg.classList.add("hidden");
+    errorMsg.classList.add("hidden");
+    loadingMsg.classList.remove("hidden");
+    loadingText.textContent = "Starting submission...";
+    
+    try {
+        const formData = new FormData(form);
+        const data = {};
+        let fileCount = 0;
+        
+        // Collect non-file data
+        for (let [key, value] of formData.entries()) {
+            if (!(value instanceof File)) {
+                data[key] = value;
+            }
+        }
+        
+        // Upload files to Dropbox
+        for (let [key, value] of formData.entries()) {
+            if (value instanceof File && value.size > 0) {
+                fileCount++;
+                let folder = "/Registration_Forms/Boat_Registration";
+                if (key.includes("insurance")) {
+                    folder = "/Registration_Forms/Boat_Insurance";
+                }
+                
+                loadingText.textContent = `Uploading file ${fileCount}...`;
+                loadingDetails.textContent = `Uploading ${value.name}...`;
+                
+                try {
+                    const dropboxLink = await uploadFileToDropbox(value, folder, value.name);
+                    data[`${key}_link`] = dropboxLink;
+                    console.log(`✅ ${key} uploaded successfully`);
+                } catch (uploadError) {
+                    console.error(`❌ Failed to upload ${key}:`, uploadError);
+                    data[`${key}_link`] = `Upload failed: ${uploadError.message}`;
+                }
+            }
+        }
+        
+        // Send to Google Script using GET (no CORS!)
+        loadingText.textContent = "Saving to database...";
+        loadingDetails.textContent = "Sending data to Google Sheets...";
+        
+        const params = new URLSearchParams(data);
+        const url = `${SCRIPT_URL}?${params.toString()}`;
+        
+        console.log("Sending to:", url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            redirect: 'follow'
+        });
+        
+        const result = await response.json();
+        console.log("Server response:", result);
+        
+        if (result.status === "success") {
+            successMsg.classList.remove("hidden");
+            form.reset();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+            throw new Error(result.message || "Submission failed");
+        }
+        
+    } catch (error) {
+        console.error("Submission error:", error);
+        errorText.textContent = "Submission failed: " + error.message;
+        errorMsg.classList.remove("hidden");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+        loadingMsg.classList.add("hidden");
+        submitBtn.disabled = false;
+        submitBtn.innerText = "🚀 Submit Boat Registration";
+    }
+});
+
+console.log("✅ Boat form script loaded");
+</script>
+
+</body>
+</html>

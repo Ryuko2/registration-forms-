@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Registration - LJ Services Group</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 min-h-screen py-8">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <!-- Logo -->
+        <div class="text-center mb-6">
+            <img src="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b7/32/f7/b732f723-33a3-7d19-2e8c-b6f5d1071b9c/AppIcon-1x_U007emarketing-0-7-85-220-0.png/1200x630wa.png" alt="LJ Services Group" class="max-w-[180px] h-auto mx-auto rounded-xl shadow-lg">
+        </div>
+
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 mb-6 border-t-4 border-pink-500">
+            <h1 class="text-4xl font-bold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">🐾 Pet Registration Form</h1>
+            <p class="text-center text-gray-600 text-lg">Choose registration type and complete the form</p>
+        </div>
+
+        <!-- Form Type Selection -->
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl shadow-2xl p-8 mb-6" id="formTypeSelection">
+            <h2 class="text-2xl font-bold text-white text-center mb-4">Select Registration Type</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button type="button" onclick="selectFormType('service')" id="serviceBtn"
+                    class="bg-white hover:bg-pink-50 text-gray-800 font-bold py-6 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105">
+                    <div class="text-4xl mb-2">🐕‍🦺</div>
+                    <div class="text-lg">Service Animal / ESA</div>
+                    <div class="text-sm text-gray-600 mt-2">For assistance or emotional support animals</div>
+                </button>
+                <button type="button" onclick="selectFormType('pet')" id="petBtn"
+                    class="bg-white hover:bg-purple-50 text-gray-800 font-bold py-6 px-6 rounded-xl shadow-lg transition-all transform hover:scale-105">
+                    <div class="text-4xl mb-2">🐾</div>
+                    <div class="text-lg">General Pet</div>
+                    <div class="text-sm text-gray-600 mt-2">For regular pets (dogs, cats, birds, etc.)</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="successMessage" class="hidden bg-green-50 border-l-4 border-green-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <span class="text-4xl mr-4">✅</span>
+                <div>
+                    <h3 class="font-bold text-green-800 text-lg">Success!</h3>
+                    <p class="text-green-700">Your pet registration has been submitted successfully.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="hidden bg-red-50 border-l-4 border-red-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <span class="text-4xl mr-4">❌</span>
+                <div>
+                    <h3 class="font-bold text-red-800 text-lg">Error</h3>
+                    <p class="text-red-700" id="errorText">There was a problem submitting your form.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingMessage" class="hidden bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
+                <div>
+                    <p class="text-blue-700 font-semibold" id="loadingText">Processing your registration...</p>
+                    <p class="text-blue-600 text-sm mt-1" id="loadingDetails"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SERVICE ANIMAL FORM -->
+        <form id="serviceAnimalForm" class="hidden space-y-6">
+            <input type="hidden" name="registration_type" value="Service Animal / ESA">
+            
+            <!-- Owner Information -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-pink-500">
+                <h2 class="text-2xl font-bold text-pink-700 mb-6 flex items-center">
+                    <span class="bg-pink-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-pink-600">👤</span>
+                    Owner Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Name of Owner/Occupant/Lessee <span class="text-red-500">*</span></label>
+                        <input type="text" name="owner_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none"
+                            placeholder="Full name">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Unit Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="unit_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none"
+                            placeholder="e.g., 101">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Association Name <span class="text-red-500">*</span></label>
+                        <select name="association_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none">
+                            <option value="">Select Association</option>
+                            <option value="Anthony Gardens ANT">Anthony Gardens ANT</option>
+                            <option value="Bayshore Treasure Condominium BTC">Bayshore Treasure Condominium BTC</option>
+                            <option value="Cambridge CAM">Cambridge CAM</option>
+                            <option value="Eastside Condominium EAST">Eastside Condominium EAST</option>
+                            <option value="Enclave Waterside Villas Condominium Association EWVCA">Enclave Waterside Villas Condominium Association EWVCA</option>
+                            <option value="Futura Sansovino Condominium Association, Inc FSCA">Futura Sansovino Condominium Association, Inc FSCA</option>
+                            <option value="Island Point South IPSCA">Island Point South IPSCA</option>
+                            <option value="Michelle Condominium MICH">Michelle Condominium MICH</option>
+                            <option value="Monterrey Condominium Property Association, Inc. MTC">Monterrey Condominium Property Association, Inc. MTC</option>
+                            <option value="Normandy Shores Condominium NORM">Normandy Shores Condominium NORM</option>
+                            <option value="Oxford Gates OX">Oxford Gates OX</option>
+                            <option value="Palms Of Sunset Condominium Association, Inc POSS">Palms Of Sunset Condominium Association, Inc POSS</option>
+                            <option value="Patricia Condominium PAT">Patricia Condominium PAT</option>
+                            <option value="Ritz Royal RITZ">Ritz Royal RITZ</option>
+                            <option value="Sage Condominium SAGE">Sage Condominium SAGE</option>
+                            <option value="The Niche NICHE">The Niche NICHE</option>
+                            <option value="Tower Gates TWG">Tower Gates TWG</option>
+                            <option value="Vizcaya Villas Condominium VVC">Vizcaya Villas Condominium VVC</option>
+                            <option value="Wilton Terrace Condominium WTC">Wilton Terrace Condominium WTC</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Animal Information -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-purple-500">
+                <h2 class="text-2xl font-bold text-purple-700 mb-6 flex items-center">
+                    <span class="bg-purple-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-purple-600">🐕</span>
+                    Service Animal Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Animal Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="animal_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Breed <span class="text-red-500">*</span></label>
+                        <input type="text" name="breed" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Sex <span class="text-red-500">*</span></label>
+                        <select name="sex" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Color <span class="text-red-500">*</span></label>
+                        <input type="text" name="color" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Weight (lbs) <span class="text-red-500">*</span></label>
+                        <input type="number" name="weight" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">License Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="license_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Veterinarian Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="vet_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Vet Phone Number <span class="text-red-500">*</span></label>
+                        <input type="tel" name="vet_phone" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Specialized Training</label>
+                        <textarea name="specialized_training" rows="4"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                            placeholder="Describe any specialized training..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Required Documents -->
+            <div class="bg-gradient-to-br from-white to-pink-50 rounded-2xl shadow-lg p-8 border-l-4 border-pink-500">
+                <h2 class="text-2xl font-bold text-pink-700 mb-6 flex items-center">
+                    <span class="bg-pink-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-pink-600">📎</span>
+                    Upload Required Documents
+                </h2>
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Vaccination Records</label>
+                        <input type="file" name="vaccination_records" accept=".pdf,.jpg,.jpeg,.png" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-500 file:text-white hover:file:bg-pink-600 cursor-pointer">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Training Certificates</label>
+                        <input type="file" name="training_certificates" accept=".pdf,.jpg,.jpeg,.png" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-500 file:text-white hover:file:bg-pink-600 cursor-pointer">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Animal Photo <span class="text-red-500">*</span></label>
+                        <input type="file" name="animal_photo" accept="image/*" required 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-500 file:text-white hover:file:bg-pink-600 cursor-pointer">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Licensing Documentation</label>
+                        <input type="file" name="licensing_docs" accept=".pdf,.jpg,.jpeg,.png" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-500 file:text-white hover:file:bg-pink-600 cursor-pointer">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Request for Reasonable Accommodation</label>
+                        <input type="file" name="accommodation_request" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                            class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-500 file:text-white hover:file:bg-pink-600 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signature -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-gray-400">
+                <h2 class="text-2xl font-bold text-gray-700 mb-6">Certification & Signature</h2>
+                
+                <p class="text-gray-700 mb-6">I certify that the information provided above is true to the best of my knowledge.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Signature <span class="text-red-500">*</span></label>
+                        <div class="border-2 border-dashed border-pink-400 rounded-lg p-2 bg-white">
+                            <canvas id="serviceSignatureCanvas" class="w-full h-32 cursor-crosshair"></canvas>
+                        </div>
+                        <button type="button" onclick="clearSignature('service')" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">Clear</button>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="signature_date" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center pt-4">
+                <button type="submit" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transform transition-all hover:scale-105 active:scale-95 text-lg">
+                    🚀 Submit Service Animal Registration
+                </button>
+            </div>
+        </form>
+
+        <!-- GENERAL PET FORM -->
+        <form id="generalPetForm" class="hidden space-y-6">
+            <input type="hidden" name="registration_type" value="General Pet">
+            
+            <!-- Owner Information -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-pink-500">
+                <h2 class="text-2xl font-bold text-pink-700 mb-6 flex items-center">
+                    <span class="bg-pink-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-pink-600">👤</span>
+                    Owner Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Unit Owner or Resident <span class="text-red-500">*</span></label>
+                        <input type="text" name="owner_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Unit Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="unit_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Association Name <span class="text-red-500">*</span></label>
+                        <select name="association_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none">
+                            <option value="">Select Association</option>
+                            <option value="Anthony Gardens ANT">Anthony Gardens ANT</option>
+                            <option value="Bayshore Treasure Condominium BTC">Bayshore Treasure Condominium BTC</option>
+                            <option value="Cambridge CAM">Cambridge CAM</option>
+                            <option value="Eastside Condominium EAST">Eastside Condominium EAST</option>
+                            <option value="Enclave Waterside Villas Condominium Association EWVCA">Enclave Waterside Villas Condominium Association EWVCA</option>
+                            <option value="Futura Sansovino Condominium Association, Inc FSCA">Futura Sansovino Condominium Association, Inc FSCA</option>
+                            <option value="Island Point South IPSCA">Island Point South IPSCA</option>
+                            <option value="Michelle Condominium MICH">Michelle Condominium MICH</option>
+                            <option value="Monterrey Condominium Property Association, Inc. MTC">Monterrey Condominium Property Association, Inc. MTC</option>
+                            <option value="Normandy Shores Condominium NORM">Normandy Shores Condominium NORM</option>
+                            <option value="Oxford Gates OX">Oxford Gates OX</option>
+                            <option value="Palms Of Sunset Condominium Association, Inc POSS">Palms Of Sunset Condominium Association, Inc POSS</option>
+                            <option value="Patricia Condominium PAT">Patricia Condominium PAT</option>
+                            <option value="Ritz Royal RITZ">Ritz Royal RITZ</option>
+                            <option value="Sage Condominium SAGE">Sage Condominium SAGE</option>
+                            <option value="The Niche NICHE">The Niche NICHE</option>
+                            <option value="Tower Gates TWG">Tower Gates TWG</option>
+                            <option value="Vizcaya Villas Condominium VVC">Vizcaya Villas Condominium VVC</option>
+                            <option value="Wilton Terrace Condominium WTC">Wilton Terrace Condominium WTC</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pet Information -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-purple-500">
+                <h2 class="text-2xl font-bold text-purple-700 mb-6 flex items-center">
+                    <span class="bg-purple-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-purple-600">🐾</span>
+                    Pet Information
+                </h2>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Pet Type <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <label class="flex items-center cursor-pointer group">
+                            <input type="radio" name="pet_type" value="DOG" required class="w-5 h-5 text-purple-600">
+                            <span class="ml-3 text-gray-700 group-hover:text-purple-600 font-medium">DOG</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer group">
+                            <input type="radio" name="pet_type" value="CAT" class="w-5 h-5 text-purple-600">
+                            <span class="ml-3 text-gray-700 group-hover:text-purple-600 font-medium">CAT</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer group">
+                            <input type="radio" name="pet_type" value="BIRD" class="w-5 h-5 text-purple-600">
+                            <span class="ml-3 text-gray-700 group-hover:text-purple-600 font-medium">BIRD</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer group">
+                            <input type="radio" name="pet_type" value="OTHER" class="w-5 h-5 text-purple-600">
+                            <span class="ml-3 text-gray-700 group-hover:text-purple-600 font-medium">OTHER</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Pet's Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="pet_name" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Pet's Age <span class="text-red-500">*</span></label>
+                        <input type="text" name="pet_age" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Pet's Weight <span class="text-red-500">*</span></label>
+                        <input type="text" name="pet_weight" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">License/Tag Number <span class="text-red-500">*</span></label>
+                        <input type="text" name="license_number" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Breed (Be specific - complete description, color, etc.) <span class="text-red-500">*</span></label>
+                        <textarea name="breed" rows="4" required
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                            placeholder="Please provide detailed description including breed, color, size, and any distinguishing characteristics..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pet Photo -->
+            <div class="bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-lg p-8 border-l-4 border-purple-500">
+                <h2 class="text-2xl font-bold text-purple-700 mb-6 flex items-center">
+                    <span class="bg-purple-100 rounded-full w-10 h-10 flex items-center justify-center mr-3 text-purple-600">📷</span>
+                    Pet Photo
+                </h2>
+                
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Upload Photo of Pet <span class="text-red-500">*</span></label>
+                    <input type="file" name="pet_photo" accept="image/*" required 
+                        class="block w-full text-sm text-gray-600 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Signature -->
+            <div class="bg-white rounded-2xl shadow-lg p-8 border-l-4 border-gray-400">
+                <h2 class="text-2xl font-bold text-gray-700 mb-6">Owner Agreement</h2>
+                
+                <p class="text-gray-700 mb-6">I am aware of my association's rules, regulations and restrictions regarding pets on the property and agree to abide by them.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Signature <span class="text-red-500">*</span></label>
+                        <div class="border-2 border-dashed border-purple-400 rounded-lg p-2 bg-white">
+                            <canvas id="petSignatureCanvas" class="w-full h-32 cursor-crosshair"></canvas>
+                        </div>
+                        <button type="button" onclick="clearSignature('pet')" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">Clear</button>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Date <span class="text-red-500">*</span></label>
+                        <input type="date" name="signature_date" required 
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center pt-4">
+                <button type="submit" class="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold py-4 px-12 rounded-xl shadow-lg transform transition-all hover:scale-105 active:scale-95 text-lg">
+                    🚀 Submit Pet Registration
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-600 text-sm">
+            <p>© 2025 LJ Services Group. All rights reserved.</p>
+        </div>
+    </div>
+
+<script>
+// ============================================
+// CONFIGURATION
+// ============================================
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+const DROPBOX_TOKEN = "YOUR_DROPBOX_TOKEN_HERE";
+
+let currentFormType = null;
+let signatures = {
+    service: { canvas: null, ctx: null, isEmpty: true, isDrawing: false },
+    pet: { canvas: null, ctx: null, isEmpty: true, isDrawing: false }
+};
+
+// ============================================
+// FORM TYPE SELECTION
+// ============================================
+function selectFormType(type) {
+    currentFormType = type;
+    document.getElementById('formTypeSelection').style.display = 'none';
+    
+    if (type === 'service') {
+        document.getElementById('serviceAnimalForm').classList.remove('hidden');
+        setTimeout(() => initializeSignature('service', 'serviceSignatureCanvas'), 100);
+    } else {
+        document.getElementById('generalPetForm').classList.remove('hidden');
+        setTimeout(() => initializeSignature('pet', 'petSignatureCanvas'), 100);
+    }
+}
+
+// ============================================
+// SIGNATURE CANVAS
+// ============================================
+function initializeSignature(type, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    signatures[type].canvas = canvas;
+    signatures[type].ctx = ctx;
+    
+    canvas.addEventListener('mousedown', (e) => startDrawing(e, type));
+    canvas.addEventListener('mousemove', (e) => draw(e, type));
+    canvas.addEventListener('mouseup', () => stopDrawing(type));
+    canvas.addEventListener('mouseout', () => stopDrawing(type));
+    
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0], type); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0], type); });
+    canvas.addEventListener('touchend', () => stopDrawing(type));
+}
+
+function getMousePos(canvas, e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+function startDrawing(e, type) {
+    signatures[type].isDrawing = true;
+    signatures[type].isEmpty = false;
+    const pos = getMousePos(signatures[type].canvas, e);
+    signatures[type].ctx.beginPath();
+    signatures[type].ctx.moveTo(pos.x, pos.y);
+}
+
+function draw(e, type) {
+    if (!signatures[type].isDrawing) return;
+    const pos = getMousePos(signatures[type].canvas, e);
+    signatures[type].ctx.lineWidth = 2;
+    signatures[type].ctx.lineCap = 'round';
+    signatures[type].ctx.strokeStyle = '#000';
+    signatures[type].ctx.lineTo(pos.x, pos.y);
+    signatures[type].ctx.stroke();
+}
+
+function stopDrawing(type) {
+    signatures[type].isDrawing = false;
+    signatures[type].ctx.beginPath();
+}
+
+function clearSignature(type) {
+    const canvas = signatures[type].canvas;
+    signatures[type].ctx.clearRect(0, 0, canvas.width, canvas.height);
+    signatures[type].isEmpty = true;
+}
+
+// ============================================
+// DROPBOX FILE UPLOAD
+// ============================================
+async function uploadFileToDropbox(file, folderPath, fileName) {
+    const timestamp = Date.now();
+    const safeFileName = `${timestamp}_${fileName}`;
+    const fullPath = `${folderPath}/${safeFileName}`;
+    
+    try {
+        console.log(`Uploading ${fileName} to ${fullPath}`);
+        
+        const uploadResponse = await fetch("https://content.dropboxapi.com/2/files/upload", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${DROPBOX_TOKEN}`,
+                "Dropbox-API-Arg": JSON.stringify({
+                    path: fullPath,
+                    mode: "add",
+                    autorename: true
+                }),
+                "Content-Type": "application/octet-stream"
+            },
+            body: file
+        });
+        
+        if (!uploadResponse.ok) {
+            throw new Error(`Upload failed (${uploadResponse.status})`);
+        }
+        
+        const uploadData = await uploadResponse.json();
+        console.log("File uploaded successfully");
+        
+        const linkResponse = await fetch("https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${DROPBOX_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                path: uploadData.path_lower,
+                settings: { requested_visibility: "public" }
+            })
+        });
+        
+        if (!linkResponse.ok) {
+            const errorData = await linkResponse.json();
+            if (errorData.error && errorData.error['.tag'] === 'shared_link_already_exists') {
+                return errorData.error.shared_link_already_exists.metadata.url.replace("?dl=0", "?raw=1");
+            }
+            throw new Error("Link creation failed");
+        }
+        
+        const linkData = await linkResponse.json();
+        return linkData.url.replace("?dl=0", "?raw=1");
+        
+    } catch (error) {
+        console.error(`Error uploading ${fileName}:`, error);
+        throw error;
+    }
+}
+
+// ============================================
+// FORM SUBMISSION
+// ============================================
+async function handleFormSubmission(form, type) {
+    const successMsg = document.getElementById('successMessage');
+    const errorMsg = document.getElementById('errorMessage');
+    const loadingMsg = document.getElementById('loadingMessage');
+    const errorText = document.getElementById('errorText');
+    const loadingText = document.getElementById('loadingText');
+    const loadingDetails = document.getElementById('loadingDetails');
+    
+    if (signatures[type].isEmpty) {
+        alert('Please provide your signature before submitting.');
+        return;
+    }
+    
+    successMsg.classList.add('hidden');
+    errorMsg.classList.add('hidden');
+    loadingMsg.classList.remove('hidden');
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Processing...';
+    
+    try {
+        const formData = new FormData(form);
+        const data = {};
+        let fileCount = 0;
+        
+        // Collect non-file data
+        for (let [key, value] of formData.entries()) {
+            if (!(value instanceof File)) {
+                data[key] = value;
+            }
+        }
+        
+        // Upload signature
+        loadingText.textContent = "Saving signature...";
+        const signatureBlob = await new Promise(resolve => {
+            signatures[type].canvas.toBlob(resolve);
+        });
+        const signatureFile = new File([signatureBlob], `signature_${Date.now()}.png`, { type: 'image/png' });
+        const signatureLink = await uploadFileToDropbox(signatureFile, "/Registration_Forms/Pet_Documents", signatureFile.name);
+        data.signature_link = signatureLink;
+        
+        // Upload other files
+        for (let [key, value] of formData.entries()) {
+            if (value instanceof File && value.size > 0) {
+                fileCount++;
+                loadingText.textContent = `Uploading file ${fileCount}...`;
+                loadingDetails.textContent = `Uploading ${value.name}...`;
+                
+                try {
+                    const dropboxLink = await uploadFileToDropbox(value, "/Registration_Forms/Pet_Documents", value.name);
+                    data[`${key}_link`] = dropboxLink;
+                    console.log(`✅ ${key} uploaded successfully`);
+                } catch (uploadError) {
+                    console.error(`❌ Failed to upload ${key}:`, uploadError);
+                    data[`${key}_link`] = `Upload failed: ${uploadError.message}`;
+                }
+            }
+        }
+        
+        // Send to Google Script
+        loadingText.textContent = "Saving to database...";
+        loadingDetails.textContent = "Sending data to Google Sheets...";
+        
+        const params = new URLSearchParams(data);
+        const url = `${SCRIPT_URL}?${params.toString()}`;
+        
+        console.log("Sending to:", url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            redirect: 'follow'
+        });
+        
+        const result = await response.json();
+        console.log("Server response:", result);
+        
+        if (result.status === "success") {
+            successMsg.classList.remove('hidden');
+            form.reset();
+            clearSignature(type);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+            throw new Error(result.message || "Submission failed");
+        }
+        
+    } catch (error) {
+        console.error("Submission error:", error);
+        errorText.textContent = "Submission failed: " + error.message;
+        errorMsg.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+        loadingMsg.classList.add('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = type === 'service' ? 
+            '🚀 Submit Service Animal Registration' : 
+            '🚀 Submit Pet Registration';
+    }
+}
+
+document.getElementById('serviceAnimalForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await handleFormSubmission(this, 'service');
+});
+
+document.getElementById('generalPetForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await handleFormSubmission(this, 'pet');
+});
+
+console.log("✅ Pet form script loaded");
+</script>
+
+</body>
+</html>
