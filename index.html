@@ -1,1146 +1,2294 @@
-// ============================================
-// LJ SERVICES CRM v7.0 MEGA EDITION
-// The Most Advanced CRM Ever Created
-// ============================================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LJ Services – Professional CRM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
 
-console.log('🚀 LJ Services CRM v7.0 MEGA - Initializing...');
-
-// Global State
-const CRM = {
-  items: [],
-  filteredItems: [],
-  currentView: 'dashboard',
-  darkMode: localStorage.getItem('theme') === 'dark',
-  notifications: [
-    { id: 1, title: '🚨 SLA Alert', message: '3 work orders approaching deadline', time: '5 min ago', read: false, type: 'urgent' },
-    { id: 2, title: '✅ Work Order Completed', message: 'Pool maintenance at Aquarius finished', time: '1 hour ago', read: false, type: 'success' },
-    { id: 3, title: '📝 New Comment', message: 'Maria commented on your ticket', time: '2 hours ago', read: true, type: 'info' }
-  ],
-  recording: false,
-  selectedItems: new Set(),
-  contextTarget: null
-};
-
-// ============================================
-// LOADING ANIMATION
-// ============================================
-function initLoadingAnimation() {
-  const loadingScreen = document.getElementById('loadingScreen');
-  const mainApp = document.getElementById('mainApp');
-  
-  if (!loadingScreen || !mainApp) {
-    console.warn('⚠️ Loading elements not found - initializing app directly');
-    if (mainApp) {
-      mainApp.style.display = 'flex';
-      mainApp.style.opacity = '1';
-    }
-    setTimeout(initializeApp, 100);
-    return;
-  }
-  
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    setTimeout(() => {
-      loadingScreen.style.display = 'none';
-      mainApp.style.display = 'flex';
-      mainApp.style.opacity = '0';
-      setTimeout(() => {
-        mainApp.style.opacity = '1';
-        mainApp.style.transition = 'opacity 0.5s ease';
-        initializeApp();
-      }, 50);
-    }, 500);
-  }, 2500);
-}
-
-// ============================================
-// DARK MODE
-// ============================================
-function initDarkMode() {
-  const btn = document.getElementById('darkModeToggle');
-  
-  if (CRM.darkMode) {
-    document.documentElement.classList.add('dark');
-    document.body.classList.add('dark');
-  }
-  
-  if (!btn) {
-    console.warn('⚠️ Dark mode button not found');
-    return;
-  }
-  
-  btn.addEventListener('click', () => {
-    CRM.darkMode = !CRM.darkMode;
-    document.documentElement.classList.toggle('dark');
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', CRM.darkMode ? 'dark' : 'light');
-    showToast(CRM.darkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled');
+  <style>
+    body { background-color: #f1f5f9; }
+    body.dark { background-color: #0f172a; }
     
-    // Update charts
-    updateCharts();
-  });
-}
+    .drawer-enter {
+      transform: translateX(100%);
+      opacity: 0;
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+    }
+    
+    .drawer-open {
+      transform: translateX(0);
+      opacity: 1;
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+    }
 
-// ============================================
-// TOAST NOTIFICATIONS
-// ============================================
-function showToast(message, duration = 3000, type = 'info') {
-  const toast = document.createElement('div');
-  const colors = {
-    info: 'bg-slate-900 dark:bg-white text-white dark:text-slate-900',
-    success: 'bg-emerald-600 text-white',
-    error: 'bg-rose-600 text-white',
-    warning: 'bg-amber-600 text-white'
-  };
-  
-  toast.className = `fixed bottom-4 right-4 ${colors[type] || colors.info} px-4 py-3 rounded-lg shadow-2xl z-50 text-sm font-medium slide-in`;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s';
-    setTimeout(() => toast.remove(), 300);
-  }, duration);
-}
+    .modal-enter {
+      transform: scale(0.95);
+      opacity: 0;
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+    }
+    
+    .modal-open {
+      transform: scale(1);
+      opacity: 1;
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+    }
 
-// ============================================
-// NOTIFICATIONS PANEL
-// ============================================
-function initNotifications() {
-  const btn = document.getElementById('notificationsBtn');
-  const badge = document.getElementById('notifBadge');
-  
-  if (!btn) {
-    console.warn('⚠️ Notifications button not found');
-    return;
-  }
-  
-  // Show unread badge
-  const unreadCount = CRM.notifications.filter(n => !n.read).length;
-  if (unreadCount > 0 && badge) badge.classList.remove('hidden');
-  
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    showNotificationsPanel();
-  });
-}
+    /* Bulk Actions Bar */
+    .bulk-actions-bar {
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+    }
 
-function showNotificationsPanel() {
-  const panel = createModal('Notifications', `
-    <div class="space-y-2">
-      ${CRM.notifications.map(n => `
-        <div class="p-3 rounded-lg ${n.read ? 'bg-slate-50 dark:bg-slate-800 opacity-60' : 'bg-blue-50 dark:bg-blue-900/20'} border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-500 transition-colors">
-          <div class="flex gap-3">
-            <div class="w-2 h-2 rounded-full ${n.read ? 'bg-slate-300' : 'bg-rose-500'} flex-shrink-0 mt-2"></div>
-            <div class="flex-1">
-              <p class="text-sm font-semibold text-slate-900 dark:text-white">${n.title}</p>
-              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">${n.message}</p>
-              <p class="text-xs text-slate-400 mt-1">${n.time}</p>
+    .bulk-actions-bar.active {
+      transform: translateY(0);
+    }
+
+    /* Checkbox styling */
+    .item-checkbox {
+      cursor: pointer;
+    }
+
+    .item-row:hover {
+      background-color: #f8fafc;
+    }
+
+    .item-row.selected {
+      background-color: #eff6ff;
+    }
+
+    /* Dark Mode */
+    .dark .item-row:hover {
+      background-color: #1e293b;
+    }
+
+    .dark .item-row.selected {
+      background-color: #1e3a8a;
+    }
+
+    /* Kanban Drag & Drop */
+    .kanban-column {
+      min-height: 200px;
+    }
+
+    .kanban-card {
+      cursor: grab;
+      transition: all 0.2s;
+    }
+
+    .kanban-card:active {
+      cursor: grabbing;
+    }
+
+    .kanban-card.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+    }
+
+    .kanban-column.drag-over {
+      background-color: #e0e7ff;
+      border: 2px dashed #6366f1;
+    }
+
+    .dark .kanban-column.drag-over {
+      background-color: #1e3a8a;
+    }
+
+    /* View Toggle */
+    .view-toggle.active {
+      background-color: white;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+
+    .dark .view-toggle.active {
+      background-color: #334155;
+    }
+
+    /* Drag & Drop Upload */
+    .drag-drop-zone {
+      transition: all 0.2s;
+    }
+
+    .drag-drop-zone.drag-active {
+      border-color: #6366f1;
+      background-color: #eef2ff;
+    }
+
+    .dark .drag-drop-zone.drag-active {
+      background-color: #1e293b;
+      border-color: #818cf8;
+    }
+
+    /* Calendar */
+    .calendar-day {
+      min-height: 100px;
+      position: relative;
+    }
+
+    .calendar-day:hover {
+      background-color: #f8fafc;
+    }
+
+    .dark .calendar-day:hover {
+      background-color: #1e293b;
+    }
+
+    .calendar-day.today {
+      background-color: #eff6ff;
+    }
+
+    .dark .calendar-day.today {
+      background-color: #1e3a8a;
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      z-index: 9999;
+      display: none;
+    }
+
+    .context-menu.active {
+      display: block;
+    }
+
+    /* Animations */
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .animate-slide-in {
+      animation: slideInRight 0.3s ease-out;
+    }
+
+    .animate-fade-in {
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    /* Loading States */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .dark .skeleton {
+      background: linear-gradient(90deg, #1e293b 25%, #0f172a 50%, #1e293b 75%);
+      background-size: 200% 100%;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ============================================ -->
+  <!-- LOADING SCREEN -->
+  <!-- ============================================ -->
+  <div id="loadingScreen" style="position: fixed; inset: 0; z-index: 99999; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease;">
+    <div style="text-align: center;">
+      <div style="display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin-bottom: 30px;">
+        <div style="position: relative; opacity: 0; transform: translateY(50px); animation: slideUp 0.8s ease 0.2s forwards;">
+          <svg width="120" height="160" viewBox="0 0 100 140" style="overflow: visible;">
+            <path style="fill: none; stroke: white; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawLine 1s ease 0.2s forwards;" d="M 20 20 L 20 120 L 80 120"/>
+          </svg>
+        </div>
+        <div style="position: relative; opacity: 0; transform: translateY(50px); animation: slideUp 0.8s ease 0.4s forwards;">
+          <svg width="120" height="160" viewBox="0 0 100 140" style="overflow: visible;">
+            <path style="fill: none; stroke: white; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 200; stroke-dashoffset: 200; animation: drawLine 1s ease 0.4s forwards;" d="M 50 40 L 50 100 Q 50 120 30 120 Q 10 120 10 100"/>
+          </svg>
+          <div style="position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 10px; left: 50%; transform: translateX(-50%); opacity: 0; animation: fadeIn 0.3s ease 0.6s forwards, bounce 0.6s ease 0.9s infinite;"></div>
+        </div>
+      </div>
+      <div style="font-size: 28px; font-weight: 700; letter-spacing: 4px; color: white; opacity: 0; animation: fadeIn 0.5s ease 1.2s forwards;">LJ SERVICES GROUP</div>
+      <div style="font-size: 16px; font-weight: 400; letter-spacing: 2px; color: rgba(255, 255, 255, 0.9); margin-top: 10px; opacity: 0; animation: fadeIn 0.5s ease 1.5s forwards;">Professional Property Management CRM</div>
+      <div style="font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #ffd700; margin-top: 10px; opacity: 0; animation: fadeIn 0.5s ease 1.7s forwards;">⚡ v8.0 ULTIMATE EDITION ⚡</div>
+    </div>
+  </div>
+  
+  <style>
+    @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+    @keyframes drawLine { to { stroke-dashoffset: 0; } }
+    @keyframes fadeIn { to { opacity: 1; } }
+    @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-15px); } }
+  </style>
+
+  <!-- ============================================ -->
+  <!-- MAIN APP -->
+  <!-- ============================================ -->
+  <div id="mainApp" style="display: none; opacity: 0;" class="min-h-screen flex flex-col">
+
+
+  <!-- Top Bar -->
+  <header class="w-full bg-white border-b border-slate-200 dark:bg-slate-900 dark:border-slate-700">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white font-semibold">LJ</span>
+        <div>
+          <h1 class="text-sm font-semibold text-slate-900 dark:text-white">LJ Services Group – Professional CRM</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Tickets • Work Orders • Violations • Comments</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <!-- View Toggle -->
+        <div class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+          <button id="listViewBtn" class="view-toggle px-3 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </button>
+          <button id="kanbanViewBtn" class="view-toggle px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+          </button>
+          <button id="calendarViewBtn" class="view-toggle px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- AI Assistant -->
+        <button id="aiAssistantBtn" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-medium hover:from-purple-600 hover:to-pink-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          AI Assistant
+        </button>
+
+        <!-- Notifications -->
+        <button id="notificationsBtn" class="relative p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span class="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+        </button>
+
+        <!-- Dark Mode Toggle -->
+        <button id="darkModeToggle" class="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+          <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg class="w-5 h-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+
+        <div class="hidden sm:flex flex-col items-end">
+          <span id="userName" class="text-sm font-medium text-slate-900 dark:text-white">Kevin R</span>
+          <span id="userEmail" class="text-xs text-slate-500 dark:text-slate-400"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="670c02110e0915270b0d140215110e04021400150812174904080a">[email&#160;protected]</a></span>
+        </div>
+        <button id="logoutBtn" class="inline-flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+          Logout
+        </button>
+        <div class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-sm font-semibold">K</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="flex flex-1 overflow-hidden">
+    
+    <!-- Sidebar -->
+    <aside class="hidden md:flex flex-col w-60 bg-white border-r border-slate-200">
+      <div class="px-4 py-4 border-b border-slate-100">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Dashboards</p>
+        <div class="mt-3 space-y-1">
+          <button type="button" data-dashboard="main" class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50">
+            <span>Overview</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Main</span>
+          </button>
+          <button type="button" data-dashboard="tickets" class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <span>Tickets Dashboard</span>
+          </button>
+          <button type="button" data-dashboard="workOrders" class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <span>Work Orders Dashboard</span>
+          </button>
+          <button type="button" data-dashboard="violations" class="dashboard-tab w-full flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <span>Violations Dashboard</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="px-4 py-4 border-b border-slate-100">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Quick Access</p>
+        <div class="mt-3 space-y-1">
+          <button type="button" id="templatesBtn" class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Templates
+            <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700" id="templateCount">0</span>
+          </button>
+          <button type="button" id="reportsBtn" class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Reports
+          </button>
+          <button type="button" id="automationBtn" class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Automation
+            <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700" id="rulesCount">0</span>
+          </button>
+          <button type="button" id="batchHistoryBtn" class="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Batch History
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-auto px-4 py-4 border-t border-slate-100 text-[11px] text-slate-400">
+        <p>Realtime data from Firebase</p>
+        <p class="mt-1">DB: <span class="font-mono text-[10px]" id="dbUrlLabel">–</span></p>
+        <p class="mt-2 text-indigo-600 font-medium">v4.0 Pro Edition</p>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Mobile dashboard selector -->
+        <div class="md:hidden">
+          <select id="mobileDashboardSelect" class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <option value="main">Overview</option>
+            <option value="tickets">Tickets Dashboard</option>
+            <option value="workOrders">Work Orders Dashboard</option>
+            <option value="violations">Violations Dashboard</option>
+          </select>
+        </div>
+
+        <!-- Header with actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900" id="dashboardTitle">Overview</h2>
+            <p class="text-xs text-slate-500 mt-1" id="dashboardSubtitle">High-level activity across all items.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button data-open-drawer="ticket" class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100">+ Ticket</button>
+            <button data-open-drawer="workOrder" class="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100">+ Work Order</button>
+            <button data-open-drawer="violation" class="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100">+ Violation</button>
+          </div>
+        </div>
+
+        <!-- Search & Advanced Filters -->
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+          <div class="flex flex-col gap-3">
+            <!-- Search Bar Row -->
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="flex-1">
+                <div class="relative">
+                  <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input 
+                    type="text" 
+                    id="globalSearch"
+                    placeholder="Search by title, association, vendor, reference number, tags..." 
+                    class="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              
+              <!-- Advanced Filter Button -->
+              <button 
+                id="toggleAdvancedFilters"
+                class="px-4 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-2 whitespace-nowrap"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Advanced Filters
+              </button>
+            </div>
+
+            <!-- Status Filters Row -->
+            <div class="flex flex-wrap gap-2">
+              <button 
+                data-filter-status="all"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+              >
+                All
+              </button>
+              <button 
+                data-filter-status="open"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Open
+              </button>
+              <button 
+                data-filter-status="in progress"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                In Progress
+              </button>
+              <button 
+                data-filter-status="closed"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Closed
+              </button>
+              
+              <div class="h-6 w-px bg-slate-300 mx-1"></div>
+              
+              <!-- Quick Filter Buttons -->
+              <button 
+                id="filterOverdue"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Overdue
+              </button>
+              <button 
+                id="filterMyItems"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                My Items
+              </button>
+              <button 
+                id="filterUnassigned"
+                class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Unassigned
+              </button>
+            </div>
+
+            <!-- Advanced Filters Panel (Hidden by default) -->
+            <div id="advancedFiltersPanel" class="hidden border-t border-slate-200 pt-3 mt-1">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <!-- Date Range -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Date Range</label>
+                  <select id="filterDateRange" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="quarter">This Quarter</option>
+                    <option value="year">This Year</option>
+                    <option value="custom">Custom Range...</option>
+                  </select>
+                </div>
+
+                <!-- Priority Filter -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Priority</label>
+                  <select id="filterPriority" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                    <option value="">All Priorities</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
+                <!-- Association Filter -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Association</label>
+                  <select id="filterAssociation" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                    <option value="">All Associations</option>
+                  </select>
+                </div>
+
+                <!-- Tags Filter -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1">Tags</label>
+                  <select id="filterTags" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                    <option value="">All Tags</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="follow-up">Follow-up</option>
+                    <option value="review">Review</option>
+                    <option value="important">Important</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Filter Actions -->
+              <div class="flex items-center justify-between mt-3">
+                <div class="flex gap-2">
+                  <button id="applyAdvancedFilters" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
+                    Apply Filters
+                  </button>
+                  <button id="clearAdvancedFilters" class="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-200">
+                    Clear All
+                  </button>
+                </div>
+                <div class="flex gap-2">
+                  <button id="saveFilterView" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    Save View
+                  </button>
+                  <select id="savedViews" class="text-xs border border-slate-300 rounded-lg px-2 py-1">
+                    <option value="">Saved Views...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Results Counter & Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+              <div class="flex items-center gap-3">
+                <p id="searchResults" class="text-xs text-slate-500"></p>
+                <span id="activeFiltersCount" class="hidden text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium"></span>
+                <button 
+                  id="selectAllBtn"
+                  class="text-xs text-indigo-600 hover:text-indigo-700 font-medium hidden"
+                >
+                  Select All
+                </button>
+                <button 
+                  id="clearSelectionBtn"
+                  class="text-xs text-slate-600 hover:text-slate-700 font-medium hidden"
+                >
+                  Clear Selection
+                </button>
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  id="exportCurrentViewBtn"
+                  class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export
+                </button>
+                <button 
+                  id="printViewBtn"
+                  class="text-xs text-slate-600 hover:text-slate-700 font-medium flex items-center gap-1"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Print
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      `).join('')}
-    </div>
-    <button onclick="markAllNotificationsRead()" class="mt-4 w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-      Mark All as Read
-    </button>
-  `);
-}
 
-window.markAllNotificationsRead = function() {
-  CRM.notifications.forEach(n => n.read = true);
-  document.getElementById('notifBadge').classList.add('hidden');
-  showToast('✅ All notifications marked as read', 2000, 'success');
-  closeAllModals();
-};
+        <!-- Overview Dashboard -->
+        <div data-dashboard-view="main">
+          <!-- Analytics Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Stats Cards -->
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Total Items</p>
+                  <p class="text-2xl font-bold text-slate-900 mt-1" id="statTotal">0</p>
+                  <p class="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    <span id="statTotalTrend">+0%</span>
+                  </p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-// ============================================
-// AI ASSISTANT (Free Local)
-// ============================================
-function initAI() {
-  const btn = document.getElementById('aiAssistantBtn');
-  btn.addEventListener('click', showAIAssistant);
-}
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Open</p>
+                  <p class="text-2xl font-bold text-amber-600 mt-1" id="statOpen">0</p>
+                  <p class="text-xs text-slate-500 mt-1" id="statOpenPercent">0% of total</p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-function showAIAssistant() {
-  const modal = createModal('🤖 AI Assistant - Free Local', `
-    <div id="aiChatMessages" class="space-y-3 mb-4 max-h-96 overflow-y-auto">
-      <div class="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/40 rounded-lg p-4">
-        <p class="text-sm font-semibold text-slate-900 dark:text-white mb-2">👋 Hi! I'm your AI assistant</p>
-        <p class="text-xs text-slate-600 dark:text-slate-400">I can help you with:</p>
-        <ul class="text-xs text-slate-600 dark:text-slate-400 mt-2 space-y-1 ml-4">
-          <li>• Find overdue items instantly</li>
-          <li>• Analyze team workload</li>
-          <li>• Generate reports</li>
-          <li>• Optimize assignments</li>
-          <li>• Predict trends</li>
-          <li>• Answer any questions</li>
-        </ul>
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs font-medium text-slate-500 uppercase">In Progress</p>
+                  <p class="text-2xl font-bold text-blue-600 mt-1" id="statInProgress">0</p>
+                  <p class="text-xs text-slate-500 mt-1" id="statInProgressPercent">0% of total</p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs font-medium text-slate-500 uppercase">Closed</p>
+                  <p class="text-2xl font-bold text-emerald-600 mt-1" id="statClosed">0</p>
+                  <p class="text-xs text-slate-500 mt-1" id="statClosedPercent">0% of total</p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Analytics -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+            <!-- Priority Breakdown -->
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-slate-900 mb-3">Priority Breakdown</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                    <span class="text-xs text-slate-600">Urgent</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="priorityUrgent">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-orange-500"></div>
+                    <span class="text-xs text-slate-600">High</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="priorityHigh">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span class="text-xs text-slate-600">Medium</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="priorityMedium">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+                    <span class="text-xs text-slate-600">Low</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="priorityLow">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Type Distribution -->
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-slate-900 mb-3">Type Distribution</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                    <span class="text-xs text-slate-600">Tickets</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="typeTickets">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                    <span class="text-xs text-slate-600">Work Orders</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="typeWorkOrders">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                    <span class="text-xs text-slate-600">Violations</span>
+                  </div>
+                  <span class="text-xs font-medium text-slate-900" id="typeViolations">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-slate-900 mb-3">Quick Stats</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-600">Overdue Items</span>
+                  <span class="text-xs font-medium text-rose-600" id="statOverdue">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-600">Due Today</span>
+                  <span class="text-xs font-medium text-amber-600" id="statDueToday">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-600">Unassigned</span>
+                  <span class="text-xs font-medium text-slate-600" id="statUnassigned">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-600">Avg. Resolution Time</span>
+                  <span class="text-xs font-medium text-slate-900" id="statAvgTime">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Feed & Recent Activity -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+            <!-- Activity Feed -->
+            <div class="lg:col-span-1 bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-semibold text-slate-900">Activity Feed</h3>
+                <button id="clearActivityFeed" class="text-xs text-slate-500 hover:text-slate-700">Clear</button>
+              </div>
+              <div id="activityFeed" class="space-y-3 max-h-96 overflow-y-auto">
+                <p class="text-xs text-slate-400 text-center py-8">No recent activity</p>
+              </div>
+            </div>
+
+            <!-- Team Workload -->
+            <div class="lg:col-span-1 bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-slate-900 mb-3">Team Workload</h3>
+              <div id="teamWorkload" class="space-y-2">
+                <p class="text-xs text-slate-400 text-center py-8">No assignments yet</p>
+              </div>
+            </div>
+
+            <!-- Upcoming Deadlines -->
+            <div class="lg:col-span-1 bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+              <h3 class="text-sm font-semibold text-slate-900 mb-3">Upcoming Deadlines</h3>
+              <div id="upcomingDeadlines" class="space-y-2">
+                <p class="text-xs text-slate-400 text-center py-8">No upcoming deadlines</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity Table -->
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm mt-6">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-slate-900">Recent Activity</h3>
+              <div class="flex gap-2">
+                <button id="refreshDashboard" class="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs" id="overviewTable">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left">
+                      <input type="checkbox" id="selectAllOverview" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 item-checkbox">
+                    </th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Type</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Title</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Association</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Tags</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Due Date</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Created</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="overviewTableBody" class="divide-y divide-slate-100">
+                  <tr>
+                    <td colspan="9" class="px-4 py-8 text-center text-slate-400">
+                      No items yet. Create your first ticket, work order, or violation above.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kanban Board View -->
+        <div id="kanbanView" class="hidden">
+          <div class="flex gap-4 overflow-x-auto pb-4">
+            <!-- Open Column -->
+            <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                  <h3 class="font-semibold text-sm text-slate-900 dark:text-white">Open</h3>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300" id="kanbanOpenCount">0</span>
+                </div>
+                <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              <div id="kanbanOpenItems" class="space-y-3 min-h-[200px] kanban-column" data-status="open">
+                <p class="text-xs text-slate-400 text-center py-8">No open items</p>
+              </div>
+            </div>
+
+            <!-- In Progress Column -->
+            <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <h3 class="font-semibold text-sm text-slate-900 dark:text-white">In Progress</h3>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300" id="kanbanProgressCount">0</span>
+                </div>
+                <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              <div id="kanbanProgressItems" class="space-y-3 min-h-[200px] kanban-column" data-status="in progress">
+                <p class="text-xs text-slate-400 text-center py-8">No items in progress</p>
+              </div>
+            </div>
+
+            <!-- Review Column -->
+            <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                  <h3 class="font-semibold text-sm text-slate-900 dark:text-white">Review</h3>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300" id="kanbanReviewCount">0</span>
+                </div>
+                <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              <div id="kanbanReviewItems" class="space-y-3 min-h-[200px] kanban-column" data-status="review">
+                <p class="text-xs text-slate-400 text-center py-8">No items under review</p>
+              </div>
+            </div>
+
+            <!-- Closed Column -->
+            <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                  <h3 class="font-semibold text-sm text-slate-900 dark:text-white">Closed</h3>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300" id="kanbanClosedCount">0</span>
+                </div>
+                <button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              <div id="kanbanClosedItems" class="space-y-3 min-h-[200px] kanban-column" data-status="closed">
+                <p class="text-xs text-slate-400 text-center py-8">No closed items</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="calendarView" class="hidden">
+          <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-6">
+              <div class="flex items-center gap-4">
+                <button id="calendarPrevMonth" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                  <svg class="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white" id="calendarMonthYear">November 2024</h3>
+                <button id="calendarNextMonth" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                  <svg class="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+              <button id="calendarToday" class="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                Today
+              </button>
+            </div>
+
+            <div class="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+              <!-- Calendar headers -->
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Sun</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Mon</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Tue</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Wed</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Thu</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Fri</div>
+              <div class="bg-slate-50 dark:bg-slate-800 p-2 text-center text-xs font-medium text-slate-600 dark:text-slate-400">Sat</div>
+              
+              <!-- Calendar days will be populated by JavaScript -->
+              <div id="calendarDays" class="col-span-7 grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-700">
+                <!-- Days populated dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tickets Dashboard -->
+        <div data-dashboard-view="tickets" class="hidden">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="px-4 py-3 border-b border-slate-100">
+              <h3 class="text-sm font-semibold text-slate-900">All Tickets</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs" id="ticketsTable">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left">
+                      <input type="checkbox" id="selectAllTickets" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 item-checkbox">
+                    </th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Title</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Association</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Priority</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Created</th>
+                  </tr>
+                </thead>
+                <tbody id="ticketsTableBody" class="divide-y divide-slate-100">
+                  <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                      No tickets yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Work Orders Dashboard -->
+        <div data-dashboard-view="workOrders" class="hidden">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="px-4 py-3 border-b border-slate-100">
+              <h3 class="text-sm font-semibold text-slate-900">All Work Orders</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs" id="workOrdersTable">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left">
+                      <input type="checkbox" id="selectAllWorkOrders" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 item-checkbox">
+                    </th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Title</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Association</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Vendor</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Cost</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Created</th>
+                  </tr>
+                </thead>
+                <tbody id="workOrdersTableBody" class="divide-y divide-slate-100">
+                  <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                      No work orders yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Violations Dashboard -->
+        <div data-dashboard-view="violations" class="hidden">
+          <div class="bg-white rounded-xl border border-slate-100 shadow-sm">
+            <div class="px-4 py-3 border-b border-slate-100">
+              <h3 class="text-sm font-semibold text-slate-900">All Violations</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs" id="violationsTable">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                    <th class="px-4 py-2 text-left">
+                      <input type="checkbox" id="selectAllViolations" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 item-checkbox">
+                    </th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Title</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Association</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Rule</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Notice Step</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                    <th class="px-4 py-2 text-left font-medium text-slate-500">Created</th>
+                  </tr>
+                </thead>
+                <tbody id="violationsTableBody" class="divide-y divide-slate-100">
+                  <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-slate-400">
+                      No violations yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </div>
-    <div class="flex gap-2">
-      <input type="text" id="aiInput" placeholder="Ask me anything..." class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2" onkeypress="if(event.key==='Enter') sendAIMessage()"/>
-      <button onclick="sendAIMessage()" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold rounded-lg hover:from-purple-600 hover:to-pink-600">
-        Send
-      </button>
-    </div>
-    <div class="flex flex-wrap gap-2 mt-3">
-      <button onclick="quickAI('Show overdue')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
-        Show overdue items
-      </button>
-      <button onclick="quickAI('Team workload')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
-        Analyze team
-      </button>
-      <button onclick="quickAI('Generate report')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
-        Generate report
-      </button>
-      <button onclick="quickAI('Optimize workflow')" class="px-3 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
-        Optimize workflow
-      </button>
-    </div>
-  `);
-}
+    </main>
+  </div>
 
-window.sendAIMessage = function() {
-  const input = document.getElementById('aiInput');
-  const query = input.value.trim();
-  if (!query) return;
-  
-  addAIMessage(query, true);
-  input.value = '';
-  
-  setTimeout(() => {
-    const response = processAI(query);
-    addAIMessage(response, false);
-  }, 500);
-};
-
-window.quickAI = function(query) {
-  document.getElementById('aiInput').value = query;
-  sendAIMessage();
-};
-
-function addAIMessage(text, isUser) {
-  const container = document.getElementById('aiChatMessages');
-  const div = document.createElement('div');
-  div.className = `rounded-lg p-3 ${isUser ? 'bg-indigo-100 dark:bg-indigo-900/40 ml-12' : 'bg-slate-100 dark:bg-slate-700 mr-12'}`;
-  div.innerHTML = `<p class="text-sm ${isUser ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}">${text}</p>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-function processAI(query) {
-  const q = query.toLowerCase();
-  
-  if (q.includes('overdue') || q.includes('late')) {
-    return `📊 <b>Overdue Items Analysis:</b><br><br>Found 8 overdue items:<br>• 3 Work Orders (avg 4 days late)<br>• 3 Tickets (avg 2 days late)<br>• 2 Violations (avg 5 days late)<br><br>💡 <b>Recommendation:</b> Bulk update priority to "urgent" and notify team leads.`;
-  }
-  
-  if (q.includes('team') || q.includes('workload')) {
-    return `👥 <b>Team Workload Analysis:</b><br><br>Current assignments:<br>• Kevin R: 12 items (Balanced ✅)<br>• Maria S: 23 items (Overloaded ⚠️)<br>• John D: 7 items (Underutilized 📉)<br><br>💡 <b>Recommendation:</b> Reassign 8 items from Maria to John to optimize workload.`;
-  }
-  
-  if (q.includes('report') || q.includes('summary')) {
-    return `📈 <b>Weekly Performance Report:</b><br><br><b>Metrics:</b><br>• Total items: 156<br>• Completed: 42 (+15% vs last week)<br>• Avg resolution: 3.2 days (-0.4 days)<br>• SLA compliance: 94% (+2%)<br>• Team satisfaction: 8.5/10<br><br>✅ <b>Trending:</b> All metrics improving!`;
-  }
-  
-  if (q.includes('optimize') || q.includes('workflow')) {
-    return `⚡ <b>Workflow Optimization Suggestions:</b><br><br>1. Enable auto-assignment for urgent items<br>2. Create templates for recurring work orders<br>3. Set up SLA auto-escalation rules<br>4. Implement daily standup reminders<br>5. Use kanban view for visual management<br><br>💎 Estimated time savings: 10+ hours/week`;
-  }
-  
-  if (q.includes('predict') || q.includes('trend')) {
-    return `🔮 <b>Predictive Analysis:</b><br><br>Based on current trends:<br>• Expected items next week: 38-42<br>• Potential bottlenecks: Pool maintenance<br>• Peak days: Tuesday & Thursday<br>• Risk of SLA breach: Low (8%)<br><br>📊 Confidence level: 87%`;
-  }
-  
-  return `I understand you're asking about "${query}". Here are relevant insights:<br><br>• Your CRM has 156 total items<br>• 42 items in progress<br>• Average resolution time: 3.2 days<br>• Team is performing well!<br><br>💡 Try asking: "Show overdue", "Team workload", or "Generate report"`;
-}
-
-// ============================================
-// VOICE RECORDING
-// ============================================
-function initVoice() {
-  const btn = document.getElementById('voiceButton');
-  btn.addEventListener('click', toggleVoiceRecording);
-}
-
-function toggleVoiceRecording() {
-  if (!CRM.recording) {
-    startVoiceRecording();
-  } else {
-    stopVoiceRecording();
-  }
-}
-
-function startVoiceRecording() {
-  CRM.recording = true;
-  const btn = document.getElementById('voiceButton');
-  btn.classList.add('recording', 'bg-rose-500', 'text-white');
-  showToast('🎤 Recording... Click again to stop', 5000, 'error');
-}
-
-function stopVoiceRecording() {
-  CRM.recording = false;
-  const btn = document.getElementById('voiceButton');
-  btn.classList.remove('recording', 'bg-rose-500', 'text-white');
-  showToast('✅ Voice note saved!', 2000, 'success');
-}
-
-// ============================================
-// SEARCH
-// ============================================
-function initSearch() {
-  const btn = document.getElementById('globalSearch');
-  btn.addEventListener('click', showSearch);
-}
-
-function showSearch() {
-  const modal = createModal('🔍 Advanced Search', `
-    <div class="space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Search Query</label>
-        <input type="text" id="searchInput" placeholder="Search by title, description, tags..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2" onkeyup="performSearch()"/>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
-          <select class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option value="">All</option>
-            <option>Open</option>
-            <option>In Progress</option>
-            <option>Closed</option>
-          </select>
+  <!-- Bulk Actions Bar (Fixed at bottom) -->
+  <div id="bulkActionsBar" class="bulk-actions-bar fixed bottom-0 left-0 right-0 bg-white border-t-2 border-indigo-600 shadow-2xl z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <!-- Row 1: Selection Info & Main Actions -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span id="bulkSelectedCount" class="text-sm font-semibold text-slate-900">0 items selected</span>
+          </div>
+          <button 
+            id="toggleBulkAdvanced"
+            class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            More Options
+          </button>
         </div>
         
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-          <select class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option value="">All</option>
-            <option>Urgent</option>
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Quick Actions -->
+          <select id="bulkStatusSelect" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Status...</option>
+            <option value="open">Open</option>
+            <option value="in progress">In Progress</option>
+            <option value="closed">Closed</option>
           </select>
-        </div>
-      </div>
-      
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date Range</label>
-        <div class="grid grid-cols-2 gap-2">
-          <input type="date" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-          <input type="date" class="text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-      </div>
-      
-      <div id="searchResults" class="mt-4 space-y-2 max-h-60 overflow-y-auto">
-        <p class="text-sm text-slate-400 text-center py-4">Type to search...</p>
-      </div>
-    </div>
-  `);
-}
 
-window.performSearch = function() {
-  const query = document.getElementById('searchInput').value.toLowerCase();
-  const results = document.getElementById('searchResults');
-  
-  if (!query) {
-    results.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">Type to search...</p>';
-    return;
-  }
-  
-  // Mock search results
-  results.innerHTML = `
-    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40">
-      <p class="text-sm font-semibold text-slate-900 dark:text-white">Pool Maintenance - Aquarius</p>
-      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Work Order • Open • High Priority</p>
-    </div>
-    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40">
-      <p class="text-sm font-semibold text-slate-900 dark:text-white">Fire Alarm Test - Bristol Tower</p>
-      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Ticket • In Progress • Medium Priority</p>
-    </div>
-  `;
-};
-
-// ============================================
-// PDF GENERATION
-// ============================================
-function generateWorkOrderPDF(data) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  
-  // Professional header
-  doc.setFillColor(102, 126, 234);
-  doc.rect(0, 0, 210, 40, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(26);
-  doc.text('LJ SERVICES GROUP', 105, 18, { align: 'center' });
-  doc.setFontSize(14);
-  doc.text('WORK ORDER REQUEST', 105, 30, { align: 'center' });
-  
-  // Content
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(10);
-  
-  let y = 55;
-  doc.setFontSize(12);
-  doc.text('ORDER INFORMATION', 20, y);
-  y += 10;
-  
-  doc.setFontSize(10);
-  doc.text(`Work Order #: WO-${Date.now().toString().slice(-6)}`, 20, y);
-  y += 7;
-  doc.text(`Date Issued: ${new Date().toLocaleDateString()}`, 20, y);
-  y += 7;
-  doc.text(`Association: ${data.association || 'N/A'}`, 20, y);
-  y += 7;
-  doc.text(`Priority: ${data.priority || 'Standard'}`, 20, y);
-  y += 15;
-  
-  doc.setFontSize(12);
-  doc.text('WORK DESCRIPTION', 20, y);
-  y += 10;
-  doc.setFontSize(10);
-  const splitDesc = doc.splitTextToSize(data.description || 'No description provided', 170);
-  doc.text(splitDesc, 20, y);
-  y += splitDesc.length * 7 + 10;
-  
-  doc.setFontSize(12);
-  doc.text('VENDOR INFORMATION', 20, y);
-  y += 10;
-  doc.setFontSize(10);
-  doc.text(`Vendor: ${data.vendor || 'To be assigned'}`, 20, y);
-  y += 7;
-  doc.text(`Contact: ${data.vendorContact || 'N/A'}`, 20, y);
-  y += 7;
-  doc.text(`Estimated Cost: ${data.cost || 'Pending'}`, 20, y);
-  y += 15;
-  
-  doc.setFontSize(12);
-  doc.text('AUTHORIZATION', 20, y);
-  y += 10;
-  doc.setFontSize(10);
-  doc.text('Authorized by: Kevin Rodriguez, Assistant Manager', 20, y);
-  y += 7;
-  doc.text(`Signature: ___________________________`, 20, y);
-  y += 7;
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y);
-  
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text('LJ Services Group | Miami, FL | (305) 555-0100 | kevinr@ljservicesgroup.com', 105, 280, { align: 'center' });
-  
-  return doc;
-}
-
-function generateViolationPDF(data) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  
-  // Header
-  doc.setFillColor(244, 63, 94);
-  doc.rect(0, 0, 210, 40, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(26);
-  doc.text('LJ SERVICES GROUP', 105, 18, { align: 'center' });
-  doc.setFontSize(14);
-  doc.text('OFFICIAL VIOLATION NOTICE', 105, 30, { align: 'center' });
-  
-  // Content
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(10);
-  
-  let y = 55;
-  doc.setFontSize(12);
-  doc.text('NOTICE DETAILS', 20, y);
-  y += 10;
-  
-  doc.setFontSize(10);
-  doc.text(`Notice #: VN-${Date.now().toString().slice(-6)}`, 20, y);
-  y += 7;
-  doc.text(`Date Issued: ${new Date().toLocaleDateString()}`, 20, y);
-  y += 7;
-  doc.text(`Association: ${data.association || 'N/A'}`, 20, y);
-  y += 7;
-  doc.text(`Unit: ${data.unit || 'N/A'}`, 20, y);
-  y += 7;
-  doc.text(`Resident: ${data.resident || 'Current Occupant'}`, 20, y);
-  y += 15;
-  
-  doc.setFontSize(12);
-  doc.text('VIOLATION INFORMATION', 20, y);
-  y += 10;
-  doc.setFontSize(10);
-  doc.text(`Type: ${data.type || 'General Violation'}`, 20, y);
-  y += 7;
-  doc.text(`Severity: ${data.severity || 'Standard'}`, 20, y);
-  y += 10;
-  doc.text('Description:', 20, y);
-  y += 7;
-  const splitDesc = doc.splitTextToSize(data.description || 'No description provided', 170);
-  doc.text(splitDesc, 20, y);
-  y += splitDesc.length * 7 + 10;
-  
-  doc.setFontSize(12);
-  doc.text('REQUIRED ACTION', 20, y);
-  y += 10;
-  doc.setFontSize(10);
-  doc.text('Please remedy this violation within 10 business days of receipt.', 20, y);
-  y += 7;
-  doc.text('Failure to comply may result in additional fines or legal action.', 20, y);
-  y += 7;
-  doc.text(`Compliance deadline: ${new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toLocaleDateString()}`, 20, y);
-  y += 15;
-  
-  doc.text('CONTACT INFORMATION', 20, y);
-  y += 10;
-  doc.text('LJ Services Group - Property Management', 20, y);
-  y += 7;
-  doc.text('Kevin Rodriguez, Assistant Manager', 20, y);
-  y += 7;
-  doc.text('Email: kevinr@ljservicesgroup.com', 20, y);
-  y += 7;
-  doc.text('Phone: (305) 555-0100', 20, y);
-  
-  // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text('This is an official notice from LJ Services Group', 105, 280, { align: 'center' });
-  
-  return doc;
-}
-
-// ============================================
-// CREATE WORK ORDER
-// ============================================
-function initWorkOrder() {
-  const btn = document.getElementById('createWorkOrderBtn');
-  btn.addEventListener('click', showWorkOrderForm);
-}
-
-function showWorkOrderForm() {
-  const modal = createModal('📋 Create Work Order + PDF', `
-    <form id="woForm" class="space-y-4" onsubmit="event.preventDefault(); generateWO();">
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association *</label>
-        <input type="text" id="woAssoc" required placeholder="e.g., Aquarius Condominiums" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-      </div>
-      
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Work Description *</label>
-        <textarea id="woDesc" required rows="3" placeholder="Describe the work needed..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Vendor</label>
-          <input type="text" id="woVendor" placeholder="Vendor name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Contact</label>
-          <input type="text" id="woContact" placeholder="Phone/Email" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-          <select id="woPriority" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option>Standard</option>
-            <option>High</option>
-            <option>Urgent</option>
+          <select id="bulkPrioritySelect" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Priority...</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
           </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Est. Cost</label>
-          <input type="text" id="woCost" placeholder="$0.00" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-      </div>
-      
-      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-lg hover:from-emerald-600 hover:to-teal-700 shadow-lg">
-        📄 Generate Work Order PDF
-      </button>
-    </form>
-  `);
-}
 
-window.generateWO = function() {
-  const data = {
-    association: document.getElementById('woAssoc').value,
-    description: document.getElementById('woDesc').value,
-    vendor: document.getElementById('woVendor').value,
-    vendorContact: document.getElementById('woContact').value,
-    priority: document.getElementById('woPriority').value,
-    cost: document.getElementById('woCost').value
-  };
-  
-  const pdf = generateWorkOrderPDF(data);
-  pdf.save(`WorkOrder_${data.association.replace(/\s/g, '')}_${Date.now()}.pdf`);
-  
-  showToast('✅ Work Order PDF generated!', 2000, 'success');
-  closeAllModals();
-  
-  // Save to Firebase
-  if (window.database) {
-    window.database.ref('workOrders').push({
-      ...data,
-      createdAt: new Date().toISOString(),
-      createdBy: 'Kevin R',
-      status: 'open'
-    });
-  }
-};
-
-// ============================================
-// CREATE VIOLATION
-// ============================================
-function initViolation() {
-  const btn = document.getElementById('createViolationBtn');
-  btn.addEventListener('click', showViolationForm);
-}
-
-function showViolationForm() {
-  const modal = createModal('⚠️ Create Violation + PDF', `
-    <form id="violForm" class="space-y-4" onsubmit="event.preventDefault(); generateViol();">
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association *</label>
-        <input type="text" id="violAssoc" required placeholder="e.g., Bristol Tower" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Unit *</label>
-          <input type="text" id="violUnit" required placeholder="e.g., 204" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Resident</label>
-          <input type="text" id="violResident" placeholder="Resident name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Type *</label>
-          <select id="violType" required class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option>Parking Violation</option>
-            <option>Noise Complaint</option>
-            <option>Pet Violation</option>
-            <option>Property Damage</option>
-            <option>Unauthorized Modification</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Severity</label>
-          <select id="violSeverity" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option>Standard</option>
-            <option>Serious</option>
-            <option>Critical</option>
-          </select>
-        </div>
-      </div>
-      
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description *</label>
-        <textarea id="violDesc" required rows="3" placeholder="Describe the violation..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
-      </div>
-      
-      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-lg hover:from-rose-600 hover:to-pink-700 shadow-lg">
-        ⚠️ Generate Violation Notice PDF
-      </button>
-    </form>
-  `);
-}
-
-window.generateViol = function() {
-  const data = {
-    association: document.getElementById('violAssoc').value,
-    unit: document.getElementById('violUnit').value,
-    resident: document.getElementById('violResident').value,
-    type: document.getElementById('violType').value,
-    severity: document.getElementById('violSeverity').value,
-    description: document.getElementById('violDesc').value
-  };
-  
-  const pdf = generateViolationPDF(data);
-  pdf.save(`Violation_${data.association.replace(/\s/g, '')}_Unit${data.unit}_${Date.now()}.pdf`);
-  
-  showToast('✅ Violation Notice PDF generated!', 2000, 'success');
-  closeAllModals();
-  
-  // Save to Firebase
-  if (window.database) {
-    window.database.ref('violations').push({
-      ...data,
-      createdAt: new Date().toISOString(),
-      createdBy: 'Kevin R',
-      status: 'open'
-    });
-  }
-};
-
-// ============================================
-// CREATE TICKET
-// ============================================
-function initTicket() {
-  const btn = document.getElementById('createTicketBtn');
-  btn.addEventListener('click', showTicketForm);
-}
-
-function showTicketForm() {
-  const modal = createModal('🎫 Create Support Ticket', `
-    <form id="ticketForm" class="space-y-4" onsubmit="event.preventDefault(); generateTicket();">
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Title *</label>
-        <input type="text" id="ticketTitle" required placeholder="Brief description..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-      </div>
-      
-      <div>
-        <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-        <textarea id="ticketDesc" rows="3" placeholder="Full details..." class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 resize-none"></textarea>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Association</label>
-          <input type="text" id="ticketAssoc" placeholder="Association name" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"/>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-          <select id="ticketPriority" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2">
-            <option>Low</option>
-            <option selected>Medium</option>
-            <option>High</option>
-            <option>Urgent</option>
-          </select>
-        </div>
-      </div>
-      
-      <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-600 hover:to-purple-700 shadow-lg">
-        ✅ Create Ticket
-      </button>
-    </form>
-  `);
-}
-
-window.generateTicket = function() {
-  const data = {
-    title: document.getElementById('ticketTitle').value,
-    description: document.getElementById('ticketDesc').value,
-    association: document.getElementById('ticketAssoc').value,
-    priority: document.getElementById('ticketPriority').value,
-    status: 'open',
-    createdAt: new Date().toISOString(),
-    createdBy: 'Kevin R'
-  };
-  
-  showToast('✅ Ticket created successfully!', 2000, 'success');
-  closeAllModals();
-  
-  // Save to Firebase
-  if (window.database) {
-    window.database.ref('tickets').push(data);
-  }
-};
-
-// ============================================
-// CHARTS
-// ============================================
-function initCharts() {
-  createActivityChart();
-  createCategoryChart();
-}
-
-function createActivityChart() {
-  const ctx = document.getElementById('activityChart');
-  if (!ctx) return;
-  
-  const isDark = document.documentElement.classList.contains('dark');
-  
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{
-        label: 'Created',
-        data: [12, 19, 15, 25, 22, 18, 14],
-        borderColor: 'rgb(99, 102, 241)',
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        tension: 0.4
-      }, {
-        label: 'Completed',
-        data: [8, 15, 12, 20, 18, 15, 10],
-        borderColor: 'rgb(16, 185, 129)',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: isDark ? '#fff' : '#000' } }
-      },
-      scales: {
-        y: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? '#334155' : '#e2e8f0' } },
-        x: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? '#334155' : '#e2e8f0' } }
-      }
-    }
-  });
-}
-
-function createCategoryChart() {
-  const ctx = document.getElementById('categoryChart');
-  if (!ctx) return;
-  
-  const isDark = document.documentElement.classList.contains('dark');
-  
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Tickets', 'Work Orders', 'Violations'],
-      datasets: [{
-        data: [89, 45, 22],
-        backgroundColor: [
-          'rgb(99, 102, 241)',
-          'rgb(16, 185, 129)',
-          'rgb(244, 63, 94)'
-        ]
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: isDark ? '#fff' : '#000' } }
-      }
-    }
-  });
-}
-
-function updateCharts() {
-  // Re-initialize charts when dark mode changes
-  setTimeout(() => {
-    const activityCanvas = document.getElementById('activityChart');
-    const categoryCanvas = document.getElementById('categoryChart');
-    
-    if (activityCanvas) {
-      const activityChart = Chart.getChart(activityCanvas);
-      if (activityChart) activityChart.destroy();
-      createActivityChart();
-    }
-    
-    if (categoryCanvas) {
-      const categoryChart = Chart.getChart(categoryCanvas);
-      if (categoryChart) categoryChart.destroy();
-      createCategoryChart();
-    }
-  }, 100);
-}
-
-// ============================================
-// VIEW SWITCHING
-// ============================================
-function initViewSwitching() {
-  const tabs = document.querySelectorAll('.view-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const view = tab.dataset.view;
-      switchView(view);
-    });
-  });
-}
-
-function switchView(view) {
-  // Hide all views
-  document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
-  
-  // Show selected view
-  const viewEl = document.getElementById(`${view}View`);
-  if (viewEl) viewEl.classList.remove('hidden');
-  
-  // Update tabs
-  document.querySelectorAll('.view-tab').forEach(tab => {
-    if (tab.dataset.view === view) {
-      tab.classList.add('active', 'bg-indigo-100', 'dark:bg-indigo-900', 'text-indigo-700', 'dark:text-indigo-300');
-    } else {
-      tab.classList.remove('active', 'bg-indigo-100', 'dark:bg-indigo-900', 'text-indigo-700', 'dark:text-indigo-300');
-      tab.classList.add('text-slate-600', 'dark:text-slate-400', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
-    }
-  });
-  
-  CRM.currentView = view;
-  
-  // Load view content
-  if (view === 'kanban') loadKanbanView();
-  else if (view === 'calendar') loadCalendarView();
-  else if (view === 'timeline') loadTimelineView();
-  else if (view === 'reports') loadReportsView();
-  else if (view === 'analytics') loadAnalyticsView();
-}
-
-function loadKanbanView() {
-  const view = document.getElementById('kanbanView');
-  view.innerHTML = `
-    <div class="flex gap-4 overflow-x-auto pb-4">
-      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">📋 Open</h3>
-        <div class="space-y-3 kanban-column" data-status="open">
-          <div class="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm kanban-card cursor-move">
-            <p class="text-sm font-semibold text-slate-900 dark:text-white">Pool Maintenance</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Aquarius • High Priority</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">⏳ In Progress</h3>
-        <div class="space-y-3 kanban-column" data-status="progress">
-          <div class="bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm kanban-card cursor-move">
-            <p class="text-sm font-semibold text-slate-900 dark:text-white">Fire Alarm Test</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bristol Tower • Medium</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="flex-shrink-0 w-80 bg-slate-50 dark:bg-slate-800 rounded-xl p-4">
-        <h3 class="font-bold text-sm mb-3 text-slate-900 dark:text-white">✅ Completed</h3>
-        <div class="space-y-3 kanban-column" data-status="completed"></div>
-      </div>
-    </div>
-  `;
-  
-  // Initialize drag & drop
-  initKanbanDragDrop();
-}
-
-function initKanbanDragDrop() {
-  const columns = document.querySelectorAll('.kanban-column');
-  columns.forEach(column => {
-    new Sortable(column, {
-      group: 'kanban',
-      animation: 150,
-      ghostClass: 'opacity-50',
-      onEnd: (evt) => {
-        showToast('✅ Item moved!', 1000, 'success');
-      }
-    });
-  });
-}
-
-function loadCalendarView() {
-  const view = document.getElementById('calendarView');
-  view.innerHTML = `
-    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white">November 2024</h2>
-        <div class="flex gap-2">
-          <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          <button 
+            id="bulkApplyBtn"
+            class="px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 flex items-center gap-1"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Apply
           </button>
-          <button class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+
+          <div class="h-6 w-px bg-slate-300"></div>
+
+          <!-- Export & Delete -->
+          <button 
+            id="bulkExportBtn"
+            class="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-100 flex items-center gap-1"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </button>
+
+          <button 
+            id="bulkDeleteBtn"
+            class="px-3 py-1.5 bg-rose-50 text-rose-700 text-xs font-medium rounded-lg hover:bg-rose-100 flex items-center gap-1"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+
+          <button 
+            id="closeBulkActionsBtn"
+            class="px-3 py-1.5 text-slate-600 hover:text-slate-900 text-xs font-medium"
+          >
+            Cancel
           </button>
         </div>
       </div>
-      <div class="grid grid-cols-7 gap-2">
-        ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `
-          <div class="text-center text-xs font-medium text-slate-500 dark:text-slate-400 py-2">${d}</div>
-        `).join('')}
-        ${Array.from({length: 30}, (_, i) => `
-          <div class="aspect-square border border-slate-200 dark:border-slate-700 rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
-            <p class="text-sm font-medium text-slate-900 dark:text-white">${i + 1}</p>
-            ${i % 3 === 0 ? '<div class="mt-1 w-2 h-2 rounded-full bg-indigo-500"></div>' : ''}
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
 
-function loadTimelineView() {
-  const view = document.getElementById('timelineView');
-  view.innerHTML = `
-    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-      <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6">Timeline View</h2>
-      <div class="space-y-4">
-        <div class="flex gap-4">
-          <div class="flex-shrink-0 w-2 bg-indigo-500 rounded-full"></div>
-          <div class="flex-1">
-            <p class="text-sm font-semibold text-slate-900 dark:text-white">Work Order Created</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Pool maintenance at Aquarius • 2 hours ago</p>
-          </div>
-        </div>
-        <div class="flex gap-4">
-          <div class="flex-shrink-0 w-2 bg-emerald-500 rounded-full"></div>
-          <div class="flex-1">
-            <p class="text-sm font-semibold text-slate-900 dark:text-white">Ticket Resolved</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Fire alarm issue at Bristol • 5 hours ago</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
+      <!-- Row 2: Advanced Options (Hidden by default) -->
+      <div id="bulkAdvancedPanel" class="hidden border-t border-slate-200 pt-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          <!-- Association -->
+          <select id="bulkAssociationSelect" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Association...</option>
+          </select>
 
-function loadReportsView() {
-  const view = document.getElementById('reportsView');
-  view.innerHTML = `
-    <div class="space-y-6">
-      <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4">Generate Reports</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-500 text-left">
-            <h3 class="font-bold text-slate-900 dark:text-white">📊 Activity Report</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Weekly summary</p>
-          </button>
-          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-emerald-500 text-left">
-            <h3 class="font-bold text-slate-900 dark:text-white">💰 Cost Analysis</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Financial overview</p>
-          </button>
-          <button class="p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-purple-500 text-left">
-            <h3 class="font-bold text-slate-900 dark:text-white">👥 Team Performance</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Productivity metrics</p>
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-}
+          <!-- Assign To -->
+          <input 
+            type="text" 
+            id="bulkAssignInput"
+            placeholder="Assign to..."
+            class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
 
-function loadAnalyticsView() {
-  const view = document.getElementById('analyticsView');
-  view.innerHTML = `
-    <div class="space-y-6">
-      <div class="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl p-6 text-white shadow-lg">
-        <h2 class="text-2xl font-bold mb-2">💎 Analytics Dashboard</h2>
-        <p class="text-sm opacity-90">Advanced insights powered by AI</p>
-      </div>
-      
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Performance Metrics</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-slate-600 dark:text-slate-400">Resolution Speed</span>
-              <span class="text-sm font-bold text-emerald-600">+24%</span>
-            </div>
-            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-              <div class="bg-emerald-500 h-2 rounded-full" style="width: 78%"></div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg">
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Team Efficiency</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-slate-600 dark:text-slate-400">Avg Items/Day</span>
-              <span class="text-sm font-bold text-indigo-600">12.4</span>
-            </div>
-            <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-              <div class="bg-indigo-500 h-2 rounded-full" style="width: 62%"></div>
-            </div>
+          <!-- Add Tags -->
+          <select id="bulkAddTagsSelect" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" multiple>
+            <option value="urgent">Urgent</option>
+            <option value="follow-up">Follow-up</option>
+            <option value="review">Review</option>
+            <option value="important">Important</option>
+            <option value="escalated">Escalated</option>
+          </select>
+
+          <!-- Due Date -->
+          <input 
+            type="date" 
+            id="bulkDueDateInput"
+            class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
+
+          <!-- Quick Actions -->
+          <div class="flex gap-1">
+            <button 
+              id="bulkMarkUrgent"
+              class="flex-1 px-2 py-1.5 bg-rose-50 text-rose-700 text-xs font-medium rounded-lg hover:bg-rose-100"
+              title="Mark as Urgent"
+            >
+              ⚡ Urgent
+            </button>
+            <button 
+              id="bulkDuplicateBtn"
+              class="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-lg hover:bg-blue-100"
+              title="Duplicate Selected"
+            >
+              📋 Duplicate
+            </button>
           </div>
         </div>
       </div>
     </div>
-  `;
-}
+  </div>
 
-// ============================================
-// CONTEXT MENU
-// ============================================
-function initContextMenu() {
-  const menu = document.getElementById('contextMenu');
-  
-  document.addEventListener('contextmenu', (e) => {
-    const card = e.target.closest('.kanban-card');
-    if (card) {
-      e.preventDefault();
-      CRM.contextTarget = card;
-      menu.style.left = `${e.pageX}px`;
-      menu.style.top = `${e.pageY}px`;
-      menu.classList.add('active');
-    }
-  });
-  
-  document.addEventListener('click', () => {
-    menu.classList.remove('active');
-  });
-  
-  menu.querySelectorAll('.context-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      const action = e.currentTarget.dataset.action;
-      handleContextAction(action);
-    });
-  });
-}
-
-function handleContextAction(action) {
-  switch(action) {
-    case 'edit': showToast('✏️ Opening editor...'); break;
-    case 'duplicate': showToast('📋 Item duplicated!', 2000, 'success'); break;
-    case 'pdf': showToast('📄 Generating PDF...'); break;
-    case 'share': showToast('📤 Sharing...'); break;
-    case 'delete': showToast('🗑️ Item deleted!', 2000, 'error'); break;
-  }
-}
-
-// ============================================
-// MODAL SYSTEM
-// ============================================
-function createModal(title, content) {
-  const container = document.getElementById('modalsContainer');
-  const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 z-50 overflow-y-auto flex items-center justify-center px-4 slide-in';
-  modal.innerHTML = `
-    <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeAllModals()"></div>
-    <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full dark-transition">
-      <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white">${title}</h3>
-        <button onclick="closeAllModals()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+  <!-- Drawers (Ticket, Work Order, Violation) -->
+  <div id="drawerTicket" class="drawer-container" style="display:none;">
+    <div class="fixed inset-0 bg-black bg-opacity-25 z-40" onclick="closeDrawer('drawerTicket')"></div>
+    <div class="drawer-content drawer-enter fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-2xl z-50 overflow-y-auto">
+      <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">New Ticket</h2>
+        <button onclick="closeDrawer('drawerTicket')" class="text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
-      <div class="p-6 max-h-[70vh] overflow-y-auto">${content}</div>
+      <form id="ticketForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Title*</label>
+          <input type="text" name="title" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Association*</label>
+          <select name="association" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Select...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Status*</label>
+          <select name="status" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <option value="open">Open</option>
+            <option value="in progress">In Progress</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Priority*</label>
+          <select name="priority" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Description</label>
+          <textarea name="description" rows="4" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-indigo-700">
+          Create Ticket
+        </button>
+      </form>
     </div>
-  `;
-  
-  container.appendChild(modal);
-  return modal;
-}
+  </div>
 
-window.closeAllModals = function() {
-  document.getElementById('modalsContainer').innerHTML = '';
-};
+  <div id="drawerWorkOrder" class="drawer-container" style="display:none;">
+    <div class="fixed inset-0 bg-black bg-opacity-25 z-40" onclick="closeDrawer('drawerWorkOrder')"></div>
+    <div class="drawer-content drawer-enter fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-2xl z-50 overflow-y-auto">
+      <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">New Work Order</h2>
+        <button onclick="closeDrawer('drawerWorkOrder')" class="text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form id="workOrderForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Title*</label>
+          <input type="text" name="title" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Association*</label>
+          <select name="association" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Select...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Vendor*</label>
+          <input type="text" name="vendor" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Estimated Cost</label>
+          <input type="number" name="estimatedCost" step="0.01" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Status*</label>
+          <select name="status" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <option value="open">Open</option>
+            <option value="in progress">In Progress</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Description</label>
+          <textarea name="description" rows="4" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-amber-700">
+          Create Work Order
+        </button>
+      </form>
+    </div>
+  </div>
 
-// ============================================
-// INITIALIZE APP
-// ============================================
-function initializeApp() {
-  console.log('🎨 Initializing UI components...');
-  
-  initDarkMode();
-  initNotifications();
-  initAI();
-  initVoice();
-  initSearch();
-  initWorkOrder();
-  initViolation();
-  initTicket();
-  initCharts();
-  initViewSwitching();
-  initContextMenu();
-  
-  console.log('✅ LJ Services CRM v7.0 MEGA - Ready!');
-  showToast('🚀 CRM v7.0 MEGA loaded!', 3000, 'success');
-}
+  <div id="drawerViolation" class="drawer-container" style="display:none;">
+    <div class="fixed inset-0 bg-black bg-opacity-25 z-40" onclick="closeDrawer('drawerViolation')"></div>
+    <div class="drawer-content drawer-enter fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-2xl z-50 overflow-y-auto">
+      <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">New Violation</h2>
+        <button onclick="closeDrawer('drawerViolation')" class="text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form id="violationForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Title*</label>
+          <input type="text" name="title" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Association*</label>
+          <select name="association" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+            <option value="">Select...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Rule Broken*</label>
+          <input type="text" name="ruleBroken" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Notice Step*</label>
+          <select name="noticeStep" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <option value="1st Notice">1st Notice</option>
+            <option value="2nd Notice">2nd Notice</option>
+            <option value="3rd Notice">3rd Notice</option>
+            <option value="Final Notice">Final Notice</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Status*</label>
+          <select name="status" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg">
+            <option value="open">Open</option>
+            <option value="in progress">In Progress</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">Description</label>
+          <textarea name="description" rows="4" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-rose-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-rose-700">
+          Create Violation
+        </button>
+      </form>
+    </div>
+  </div>
 
-// Start loading animation
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initLoadingAnimation);
-} else {
-  initLoadingAnimation();
-}
+  <!-- Item Detail Modal -->
+  <div id="itemModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeModal()"></div>
+      
+      <div class="modal-content modal-enter inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+        
+        <div class="bg-white px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span id="modalTypeIcon" class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white text-sm font-semibold">T</span>
+              <div>
+                <h3 id="modalTitle" class="text-lg font-semibold text-slate-900">Item Title</h3>
+                <p id="modalReferenceNumber" class="text-xs text-slate-500 font-mono">REF-000000</p>
+              </div>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white px-6 py-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Details -->
+            <div class="lg:col-span-2 space-y-6">
+              
+              <!-- Basic Info -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Details</h3>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Association</dt>
+                    <dd id="modalAssociation" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Status</dt>
+                    <dd id="modalStatus" class="mt-1">
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">–</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Created</dt>
+                    <dd id="modalCreated" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Last Updated</dt>
+                    <dd id="modalUpdated" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                  <div class="col-span-2">
+                    <dt class="text-xs font-medium text-slate-500">Description</dt>
+                    <dd id="modalDescription" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <!-- Type-specific fields -->
+              <div id="modalVendorSection" class="hidden">
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Vendor Information</h3>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Vendor</dt>
+                    <dd id="modalVendor" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Estimated Cost</dt>
+                    <dd id="modalEstimatedCost" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div id="modalViolationSection" class="hidden">
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Violation Information</h3>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Rule Broken</dt>
+                    <dd id="modalRuleBroken" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                  <div>
+                    <dt class="text-xs font-medium text-slate-500">Notice Step</dt>
+                    <dd id="modalNoticeStep" class="text-slate-900 mt-1">–</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <!-- Comments Section -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Comments</h3>
+                <div id="commentsList" class="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                  <p class="text-xs text-slate-400 text-center py-4">No comments yet</p>
+                </div>
+                
+                <!-- Add Comment Form -->
+                <form id="commentForm" class="flex gap-2">
+                  <textarea 
+                    id="commentInput" 
+                    placeholder="Add a comment..." 
+                    rows="2"
+                    class="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 resize-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  ></textarea>
+                  <button 
+                    type="submit"
+                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+                  >
+                    Add
+                  </button>
+                </form>
+              </div>
+
+              <!-- Quick Notes (Internal) -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  Internal Notes
+                  <span class="text-xs font-normal text-slate-500">(Private - not visible to clients)</span>
+                </h3>
+                <div id="notesList" class="space-y-2 mb-3 max-h-48 overflow-y-auto">
+                  <p class="text-xs text-slate-400 text-center py-4">No internal notes yet</p>
+                </div>
+                <form id="notesForm" class="flex gap-2">
+                  <input 
+                    type="text"
+                    id="noteInput"
+                    placeholder="Add internal note..."
+                    class="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  />
+                  <button 
+                    type="submit"
+                    class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700"
+                  >
+                    Add Note
+                  </button>
+                </form>
+              </div>
+
+              <!-- Custom Fields -->
+              <div id="customFieldsSection">
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Custom Fields</h3>
+                <div class="space-y-2">
+                  <button id="addCustomFieldBtn" class="w-full px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-xs text-slate-600 hover:border-indigo-500 hover:text-indigo-600 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Custom Field
+                  </button>
+                  <div id="customFieldsList" class="space-y-2"></div>
+                </div>
+              </div>
+
+              <!-- File Attachments Section -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Attachments</h3>
+                <div id="attachmentsList" class="space-y-2 mb-3 max-h-48 overflow-y-auto">
+                  <p class="text-xs text-slate-400 text-center py-4">No attachments yet</p>
+                </div>
+                
+                <!-- Upload Form -->
+                <div class="flex gap-2">
+                  <input 
+                    type="file" 
+                    id="fileInput"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xlsx,.xls"
+                    class="hidden"
+                  />
+                  <button 
+                    type="button"
+                    onclick="document.getElementById('fileInput').click()"
+                    class="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center justify-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    Upload Files
+                  </button>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">Images, PDFs, Word, Excel (max 5MB each)</p>
+              </div>
+            </div>
+
+            <!-- Right Column: Actions & History -->
+            <div class="space-y-6">
+              
+              <!-- Quick Actions -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Actions</h3>
+                <div class="space-y-2">
+                  <button 
+                    id="closeItemBtn"
+                    class="w-full px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Close Item
+                  </button>
+                  <button 
+                    id="duplicateItemBtn"
+                    class="w-full px-3 py-2 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Duplicate
+                  </button>
+                  <button 
+                    id="saveAsTemplateBtn"
+                    class="w-full px-3 py-2 bg-purple-50 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                    Save as Template
+                  </button>
+                  <button 
+                    id="makeRecurringBtn"
+                    class="w-full px-3 py-2 bg-indigo-50 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Make Recurring
+                  </button>
+                  <button 
+                    id="exportCsvBtn"
+                    class="w-full px-3 py-2 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export to CSV
+                  </button>
+                  <button 
+                    id="printItemBtn"
+                    class="w-full px-3 py-2 bg-slate-50 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Print
+                  </button>
+                  <button 
+                    id="deleteItemBtn"
+                    class="w-full px-3 py-2 bg-rose-50 text-rose-700 text-sm font-medium rounded-lg hover:bg-rose-100 flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              <!-- Auto-Assignment Rules -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Automation</h3>
+                <div class="space-y-2">
+                  <button 
+                    id="createRuleBtn"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Create Auto-Rule
+                  </button>
+                  <div id="activeRules" class="text-xs text-slate-500 space-y-1">
+                    <p class="text-center py-2">No active rules</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Email Notifications -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">Notifications</h3>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-2 text-xs">
+                    <input 
+                      type="checkbox" 
+                      id="notifyOnComment"
+                      class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      checked
+                    />
+                    <span>Email on new comments</span>
+                  </label>
+                  <label class="flex items-center gap-2 text-xs">
+                    <input 
+                      type="checkbox" 
+                      id="notifyOnStatusChange"
+                      class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      checked
+                    />
+                    <span>Email on status changes</span>
+                  </label>
+                  <div class="mt-2">
+                    <input 
+                      type="email" 
+                      id="notifyEmail"
+                      placeholder="email@example.com"
+                      class="w-full px-2 py-1 text-xs border border-slate-300 rounded"
+                    />
+                    <p class="text-[10px] text-slate-400 mt-1">Notify this email</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- History Timeline -->
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 mb-3">History</h3>
+                <div id="historyList" class="space-y-3 text-xs max-h-80 overflow-y-auto">
+                  <p class="text-slate-400 text-center py-4">No history yet</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Assistant Modal -->
+  <div id="aiAssistantModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
+      <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeAIAssistant()"></div>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-2xl text-left overflow-hidden shadow-xl transform sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">AI Assistant</h3>
+                <p class="text-xs text-white/80">Smart suggestions powered by AI</p>
+              </div>
+            </div>
+            <button onclick="closeAIAssistant()" class="text-white/80 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 px-6 py-6">
+          <!-- AI Suggestions -->
+          <div class="space-y-4 mb-6">
+            <div class="border-l-4 border-purple-500 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-r-lg">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-purple-900 dark:text-purple-100 mb-1">Auto-Assign Recommendation</p>
+                  <p class="text-xs text-purple-700 dark:text-purple-300">You have 5 urgent tickets unassigned. Recommend assigning to Kevin R based on current workload.</p>
+                  <button class="mt-2 text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700">Apply Suggestion →</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-r-lg">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">SLA At Risk</p>
+                  <p class="text-xs text-blue-700 dark:text-blue-300">3 work orders are approaching their SLA deadline. Consider prioritizing or escalating.</p>
+                  <button class="mt-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700">View Items →</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-r-lg">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">Pattern Detected</p>
+                  <p class="text-xs text-amber-700 dark:text-amber-300">Pool maintenance items at Aquarius recurring monthly. Create a recurring task template?</p>
+                  <button class="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700">Create Template →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Chat Interface -->
+          <div class="border-t border-slate-200 dark:border-slate-700 pt-4">
+            <div class="mb-4">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Ask AI Assistant</label>
+              <div class="flex gap-2">
+                <input 
+                  type="text" 
+                  id="aiPromptInput"
+                  placeholder="Ask anything... e.g., 'Which items need attention?'"
+                  class="flex-1 text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2"
+                />
+                <button class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-pink-600">
+                  Ask
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button class="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+                Show overdue items
+              </button>
+              <button class="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+                Generate weekly report
+              </button>
+              <button class="text-xs px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
+                Optimize team workload
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLA Tracking Modal -->
+  <div id="slaModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
+      <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeSLAModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-2xl text-left overflow-hidden shadow-xl transform sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+        <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white">SLA Tracking</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Monitor service level agreements and response times</p>
+            </div>
+            <button onclick="closeSLAModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 px-6 py-6">
+          <!-- SLA Summary Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-emerald-700 dark:text-emerald-300">On Track</span>
+                <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p class="text-2xl font-bold text-emerald-900 dark:text-emerald-100">42</p>
+              <p class="text-xs text-emerald-600 dark:text-emerald-400">Meeting SLA</p>
+            </div>
+
+            <div class="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-amber-700 dark:text-amber-300">At Risk</span>
+                <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p class="text-2xl font-bold text-amber-900 dark:text-amber-100">8</p>
+              <p class="text-xs text-amber-600 dark:text-amber-400">< 25% time left</p>
+            </div>
+
+            <div class="bg-rose-50 dark:bg-rose-900/20 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-rose-700 dark:text-rose-300">Breached</span>
+                <svg class="w-5 h-5 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p class="text-2xl font-bold text-rose-900 dark:text-rose-100">3</p>
+              <p class="text-xs text-rose-600 dark:text-rose-400">Past deadline</p>
+            </div>
+
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-blue-700 dark:text-blue-300">Avg Response</span>
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p class="text-2xl font-bold text-blue-900 dark:text-blue-100">2.4h</p>
+              <p class="text-xs text-blue-600 dark:text-blue-400">First response time</p>
+            </div>
+          </div>
+
+          <!-- SLA Items Table -->
+          <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            <table class="w-full text-xs">
+              <thead class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th class="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-300">Item</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-300">SLA Target</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-300">Time Elapsed</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-300">Time Remaining</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-700 dark:text-slate-300">Status</th>
+                </tr>
+              </thead>
+              <tbody id="slaTableBody" class="divide-y divide-slate-100 dark:divide-slate-700">
+                <tr>
+                  <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+                    Loading SLA data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import/Export Modal -->
+  <div id="importExportModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20">
+      <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeImportExportModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-2xl text-left overflow-hidden shadow-xl transform sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+        <div class="bg-white dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Import / Export Data</h3>
+            <button onclick="closeImportExportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 px-6 py-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Export Section -->
+            <div>
+              <h4 class="text-sm font-semibold text-slate-900 dark:text-white mb-4">Export Data</h4>
+              <div class="space-y-3">
+                <button class="w-full flex items-center gap-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-emerald-500 dark:hover:border-emerald-500 group">
+                  <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/40">
+                    <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Export to Excel</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Download as .xlsx file</p>
+                  </div>
+                </button>
+
+                <button class="w-full flex items-center gap-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 group">
+                  <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/40">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Export to CSV</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Download as .csv file</p>
+                  </div>
+                </button>
+
+                <button class="w-full flex items-center gap-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-purple-500 dark:hover:border-purple-500 group">
+                  <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900/40">
+                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div class="text-left flex-1">
+                    <p class="text-sm font-medium text-slate-900 dark:text-white">Export to JSON</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Download as .json file</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Import Section -->
+            <div>
+              <h4 class="text-sm font-semibold text-slate-900 dark:text-white mb-4">Import Data</h4>
+              <div class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center">
+                <svg class="w-12 h-12 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="text-sm font-medium text-slate-900 dark:text-white mb-2">Drop file here or click to upload</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Supports: Excel (.xlsx), CSV (.csv), JSON (.json)</p>
+                <input type="file" id="importFileInput" class="hidden" accept=".xlsx,.csv,.json" />
+                <button onclick="document.getElementById('importFileInput').click()" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+                  Choose File
+                </button>
+              </div>
+
+              <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p class="text-xs text-blue-800 dark:text-blue-200 mb-2 font-medium">📋 Import Notes:</p>
+                <ul class="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                  <li>• Data will be validated before import</li>
+                  <li>• Duplicates will be skipped</li>
+                  <li>• Import history will be logged</li>
+                  <li>• You can undo the import if needed</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notifications Panel -->
+  <div id="notificationsPanel" class="fixed top-16 right-4 w-96 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 hidden">
+    <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-white">Notifications</h3>
+        <button id="markAllReadBtn" class="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Mark all read</button>
+      </div>
+    </div>
+    <div id="notificationsList" class="max-h-96 overflow-y-auto">
+      <!-- Notifications populated dynamically -->
+      <div class="p-4 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
+        <div class="flex gap-3">
+          <div class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 mt-1.5"></div>
+          <div class="flex-1">
+            <p class="text-xs text-slate-900 dark:text-white font-medium">SLA Breach Alert</p>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">3 work orders have exceeded their SLA deadline</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">5 minutes ago</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer">
+        <div class="flex gap-3">
+          <div class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5"></div>
+          <div class="flex-1">
+            <p class="text-xs text-slate-900 dark:text-white font-medium">New Comment</p>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Maria added a comment on "Pool Maintenance"</p>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">1 hour ago</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Templates Modal -->
+  <div id="templatesModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeTemplatesModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div class="bg-white px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Item Templates</h3>
+            <button onclick="closeTemplatesModal()" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white px-6 py-6">
+          <div class="mb-4">
+            <p class="text-sm text-slate-600 mb-4">Create and manage reusable templates for common items.</p>
+            <button id="createTemplateBtn" class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700">
+              + Create New Template
+            </button>
+          </div>
+
+          <div id="templatesList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <p class="text-sm text-slate-400 col-span-2 text-center py-8">No templates yet. Save an item as a template to get started.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports Modal -->
+  <div id="reportsModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeReportsModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+        <div class="bg-white px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Advanced Reports</h3>
+            <button onclick="closeReportsModal()" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white px-6 py-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- Report Templates -->
+            <button class="p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-500 text-left group">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-sm text-slate-900">Activity Report</h4>
+                  <p class="text-xs text-slate-500">Weekly summary</p>
+                </div>
+              </div>
+            </button>
+
+            <button class="p-4 border-2 border-slate-200 rounded-xl hover:border-emerald-500 text-left group">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200">
+                  <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-sm text-slate-900">Cost Analysis</h4>
+                  <p class="text-xs text-slate-500">Work order costs</p>
+                </div>
+              </div>
+            </button>
+
+            <button class="p-4 border-2 border-slate-200 rounded-xl hover:border-purple-500 text-left group">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200">
+                  <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-semibold text-sm text-slate-900">Team Performance</h4>
+                  <p class="text-xs text-slate-500">Resolution times</p>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div class="border-t border-slate-200 pt-4">
+            <h4 class="text-sm font-semibold text-slate-900 mb-3">Custom Report Builder</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">Report Type</label>
+                <select class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+                  <option>Activity Summary</option>
+                  <option>Financial Report</option>
+                  <option>Team Performance</option>
+                  <option>SLA Compliance</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">Date Range</label>
+                <select class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+                  <option>Last 7 Days</option>
+                  <option>Last 30 Days</option>
+                  <option>Last Quarter</option>
+                  <option>Last Year</option>
+                  <option>Custom Range</option>
+                </select>
+              </div>
+            </div>
+            <button class="mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
+              Generate Report
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Automation Rules Modal -->
+  <div id="automationModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeAutomationModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+        <div class="bg-white px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold text-slate-900">Automation Rules</h3>
+              <p class="text-xs text-slate-500 mt-1">Automate repetitive tasks with smart rules</p>
+            </div>
+            <button onclick="closeAutomationModal()" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white px-6 py-6">
+          <div class="mb-4">
+            <button id="createRuleModalBtn" class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700">
+              + Create New Rule
+            </button>
+          </div>
+
+          <div id="automationRulesList" class="space-y-3">
+            <!-- Example Rule -->
+            <div class="border border-slate-200 rounded-lg p-4 hover:border-indigo-300">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <h4 class="font-semibold text-sm text-slate-900">Auto-assign urgent tickets</h4>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Active</span>
+                  </div>
+                  <p class="text-xs text-slate-600 mb-2">When a ticket is created with "urgent" priority → Assign to Kevin R</p>
+                  <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Triggered 12 times</span>
+                    <span>•</span>
+                    <span>Last run: 2 hours ago</span>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button class="p-2 text-slate-400 hover:text-indigo-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button class="p-2 text-slate-400 hover:text-rose-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg p-4 hover:border-indigo-300">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <h4 class="font-semibold text-sm text-slate-900">Tag old items</h4>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Inactive</span>
+                  </div>
+                  <p class="text-xs text-slate-600 mb-2">When item is open for > 30 days → Add "follow-up" tag</p>
+                  <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Never triggered</span>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button class="p-2 text-slate-400 hover:text-indigo-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button class="p-2 text-slate-400 hover:text-rose-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-sm text-slate-400 text-center py-8">Create automation rules to save time on repetitive tasks</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch History Modal -->
+  <div id="batchHistoryModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onclick="closeBatchHistoryModal()"></div>
+      
+      <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+        <div class="bg-white px-6 py-4 border-b border-slate-200">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Batch Operations History</h3>
+            <button onclick="closeBatchHistoryModal()" class="text-slate-400 hover:text-slate-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white px-6 py-6">
+          <div id="batchHistoryList" class="space-y-3">
+            <!-- Example batch operation -->
+            <div class="border-l-4 border-indigo-500 bg-slate-50 p-4 rounded-r-lg">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <h4 class="font-semibold text-sm text-slate-900">Bulk Status Update</h4>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Completed</span>
+                  </div>
+                  <p class="text-xs text-slate-600 mb-2">Updated status to "Closed" for 15 items</p>
+                  <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <span>By: Kevin R</span>
+                    <span>•</span>
+                    <span>Nov 18, 2024 at 2:30 PM</span>
+                    <span>•</span>
+                    <span>15 items affected</span>
+                  </div>
+                </div>
+                <button class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View Details</button>
+              </div>
+            </div>
+
+            <div class="border-l-4 border-emerald-500 bg-slate-50 p-4 rounded-r-lg">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <h4 class="font-semibold text-sm text-slate-900">Bulk Export</h4>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Completed</span>
+                  </div>
+                  <p class="text-xs text-slate-600 mb-2">Exported 42 items to CSV</p>
+                  <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <span>By: Kevin R</span>
+                    <span>•</span>
+                    <span>Nov 18, 2024 at 1:15 PM</span>
+                    <span>•</span>
+                    <span>42 items</span>
+                  </div>
+                </div>
+                <button class="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Download Again</button>
+              </div>
+            </div>
+
+            <p class="text-sm text-slate-400 text-center py-8">All bulk operations are logged here for audit purposes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase + App -->
+
+  </div>
+  <!-- End mainApp -->
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
