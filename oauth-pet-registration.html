@@ -442,7 +442,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwyM0V-Moh6NOhaJw3D8
 const OAUTH_CONFIG = {
     app_key: "d88mapz7iu789l8",
     app_secret: "voqii7napy757im",  // ⚠️ MOVE TO SERVER IN PRODUCTION
-    refresh_token: "YOUR_REFRESH_TOKEN_HERE"
+    refresh_token: "Inao-rExJaIAAAAAAAAAAYMTehEvbqWewaetNruW__Dx3rw_KthkYc7D8yxFxlSy"
 };
 
 let cachedAccessToken = null;
@@ -459,7 +459,7 @@ async function getAccessToken() {
     }
     
     // Check if config is set
-    if (!OAUTH_CONFIG.refresh_token || OAUTH_CONFIG.refresh_token === "Inao-rExJaIAAAAAAAAAAYMTehEvbqWewaetNruW__Dx3rw_KthkYc7D8yxFxlSy") {
+    if (!OAUTH_CONFIG.refresh_token || OAUTH_CONFIG.refresh_token === "YOUR_REFRESH_TOKEN_HERE") {
         throw new Error("❌ OAuth not configured! Update OAUTH_CONFIG with your credentials.");
     }
     
